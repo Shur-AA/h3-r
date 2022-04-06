@@ -160,3 +160,27 @@ rcpp_get_destination_h3_index_from_unidirectional_edge <- function(h3EdgeStr) {
     .Call(`_h3_rcpp_get_destination_h3_index_from_unidirectional_edge`, h3EdgeStr)
 }
 
+points_to_H3 <- function(lon, lat, res) {
+    .Call(`_h3_points_to_H3`, lon, lat, res)
+}
+
+hex_centers_inbbox <- function(ext_lon, ext_lat, res) {
+    .Call(`_h3_hex_centers_inbbox`, ext_lon, ext_lat, res)
+}
+
+resample_down <- function(level_to, parent_ind, parent_vals) {
+    .Call(`_h3_resample_down`, level_to, parent_ind, parent_vals)
+}
+
+simple_sum <- function(ind1, z1, ind2, z2) {
+    .Call(`_h3_simple_sum`, ind1, z1, ind2, z2)
+}
+
+global_extremum <- function(ind, z, func) {
+    .Call(`_h3_global_extremum`, ind, z, func)
+}
+
+zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type) {
+    .Call(`_h3_zonal_statistics`, zone_ind, zone_z, rast_ind, rast_z, stat_type)
+}
+

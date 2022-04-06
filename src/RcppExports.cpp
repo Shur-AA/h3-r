@@ -5,6 +5,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // rcpp_hex_ring
 CharacterVector rcpp_hex_ring(String h3s, int radius);
 RcppExport SEXP _h3_rcpp_hex_ring(SEXP h3sSEXP, SEXP radiusSEXP) {
@@ -315,6 +320,87 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// points_to_H3
+std::vector<std::string> points_to_H3(const std::vector<double>& lon, const std::vector<double>& lat, const int& res);
+RcppExport SEXP _h3_points_to_H3(SEXP lonSEXP, SEXP latSEXP, SEXP resSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type lon(lonSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type lat(latSEXP);
+    Rcpp::traits::input_parameter< const int& >::type res(resSEXP);
+    rcpp_result_gen = Rcpp::wrap(points_to_H3(lon, lat, res));
+    return rcpp_result_gen;
+END_RCPP
+}
+// hex_centers_inbbox
+std::map <std::string, std::vector<double>> hex_centers_inbbox(const std::vector<double>& ext_lon, const std::vector<double>& ext_lat, const int& res);
+RcppExport SEXP _h3_hex_centers_inbbox(SEXP ext_lonSEXP, SEXP ext_latSEXP, SEXP resSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type ext_lon(ext_lonSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type ext_lat(ext_latSEXP);
+    Rcpp::traits::input_parameter< const int& >::type res(resSEXP);
+    rcpp_result_gen = Rcpp::wrap(hex_centers_inbbox(ext_lon, ext_lat, res));
+    return rcpp_result_gen;
+END_RCPP
+}
+// resample_down
+std::map <std::string, double> resample_down(const int& level_to, const std::vector<std::string>& parent_ind, const std::vector<double>& parent_vals);
+RcppExport SEXP _h3_resample_down(SEXP level_toSEXP, SEXP parent_indSEXP, SEXP parent_valsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const int& >::type level_to(level_toSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type parent_ind(parent_indSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type parent_vals(parent_valsSEXP);
+    rcpp_result_gen = Rcpp::wrap(resample_down(level_to, parent_ind, parent_vals));
+    return rcpp_result_gen;
+END_RCPP
+}
+// simple_sum
+std::map <std::string, double> simple_sum(std::vector<std::string>& ind1, std::vector<double>& z1, std::vector<std::string>& ind2, std::vector<double>& z2);
+RcppExport SEXP _h3_simple_sum(SEXP ind1SEXP, SEXP z1SEXP, SEXP ind2SEXP, SEXP z2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ind1(ind1SEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z1(z1SEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ind2(ind2SEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z2(z2SEXP);
+    rcpp_result_gen = Rcpp::wrap(simple_sum(ind1, z1, ind2, z2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// global_extremum
+double global_extremum(std::vector<std::string>& ind, std::vector<double>& z, const std::string func);
+RcppExport SEXP _h3_global_extremum(SEXP indSEXP, SEXP zSEXP, SEXP funcSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ind(indSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type func(funcSEXP);
+    rcpp_result_gen = Rcpp::wrap(global_extremum(ind, z, func));
+    return rcpp_result_gen;
+END_RCPP
+}
+// zonal_statistics
+std::map <std::string, std::vector<double>> zonal_statistics(std::vector<std::string>& zone_ind, std::vector<double>& zone_z, std::vector<std::string>& rast_ind, std::vector<double>& rast_z, const std::string stat_type);
+RcppExport SEXP _h3_zonal_statistics(SEXP zone_indSEXP, SEXP zone_zSEXP, SEXP rast_indSEXP, SEXP rast_zSEXP, SEXP stat_typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type zone_ind(zone_indSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type zone_z(zone_zSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type rast_ind(rast_indSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type rast_z(rast_zSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type stat_type(stat_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -344,6 +430,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_get_h3_unidirectional_edges_from_hexagon", (DL_FUNC) &_h3_rcpp_get_h3_unidirectional_edges_from_hexagon, 1},
     {"_h3_rcpp_get_origin_h3_index_from_unidirectional_edge", (DL_FUNC) &_h3_rcpp_get_origin_h3_index_from_unidirectional_edge, 1},
     {"_h3_rcpp_get_destination_h3_index_from_unidirectional_edge", (DL_FUNC) &_h3_rcpp_get_destination_h3_index_from_unidirectional_edge, 1},
+    {"_h3_points_to_H3", (DL_FUNC) &_h3_points_to_H3, 3},
+    {"_h3_hex_centers_inbbox", (DL_FUNC) &_h3_hex_centers_inbbox, 3},
+    {"_h3_resample_down", (DL_FUNC) &_h3_resample_down, 3},
+    {"_h3_simple_sum", (DL_FUNC) &_h3_simple_sum, 4},
+    {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
+    {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 5},
     {NULL, NULL, 0}
 };
 
