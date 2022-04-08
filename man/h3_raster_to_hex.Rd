@@ -4,7 +4,7 @@
 \alias{h3_raster_to_hex}
 \title{Gets stars raster object and converts it into H3 indexes}
 \usage{
-h3_raster_to_hex(rast_obj, h3_level, intrp_method)
+h3_raster_to_hex(rast_obj, h3_level, intrp_method = "bilinear")
 }
 \arguments{
 \item{intrp_method}{}
