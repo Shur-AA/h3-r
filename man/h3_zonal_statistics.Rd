@@ -2,7 +2,8 @@
 % Please edit documentation in R/analysis.R
 \name{h3_zonal_statistics}
 \alias{h3_zonal_statistics}
-\title{Calculates sum, mean, min, or max of values in H3 cells of the
+\title{Calculates sum, mean, min, max, majority or minority
+of values in H3 cells of the
 second raster which corresponds to H3 cells in the first
 raster's zones, i.e. cells that share the same value;
 resamples one raster if they have different levels}
@@ -24,7 +25,8 @@ map of H3 indexes, corresponding zone codes from first raster
 and statistics in each zone
 }
 \description{
-Calculates sum, mean, min, or max of values in H3 cells of the
+Calculates sum, mean, min, max, majority or minority
+of values in H3 cells of the
 second raster which corresponds to H3 cells in the first
 raster's zones, i.e. cells that share the same value;
 resamples one raster if they have different levels

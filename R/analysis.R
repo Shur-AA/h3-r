@@ -117,8 +117,8 @@ h3_bilinear_interpolation <- function(raster_obj, hex_tab) {
 #' and H3 indexes
 #'
 #' @export
-h3_raster_to_hex <- function(rast_obj, h3_level, intrp_method) {
-  raster_to_hex(rast_obj, h3_level, intrp_method)
+h3_raster_to_hex <- function(rast_obj, h3_level, intrp_method = 'bilinear') {
+  raster_to_hex(rast_obj, h3_level, intrp_method = 'bilinear')
 }
 
 
@@ -136,26 +136,8 @@ h3_global_extremum <- function(ind, z, func) {
 }
 
 
-#' Calculates sum of values in H3 cells of the second raster which
-#' corresponds to H3 cells in the first raster's zones, i.e. cells
-#' that share the same value; resamples one raster if
-#' they have different levels
-#'
-#' @param zone_ind
-#' @param zone_z
-#' @param rast_ind
-#' @param rast_z
-#'
-#' @return map of H3 indexes, corresponding zone codes from first raster
-#' and sums in each zone
-#'
-#' @export
-h3_zonal_sum <- function(zone_ind, zone_z, rast_ind, rast_z) {
-  zonal_sum(zone_ind, zone_z, rast_ind, rast_z)
-}
-
-
-#' Calculates sum, mean, min, or max of values in H3 cells of the
+#' Calculates sum, mean, min, max, majority or minority
+#' of values in H3 cells of the
 #' second raster which corresponds to H3 cells in the first
 #' raster's zones, i.e. cells that share the same value;
 #' resamples one raster if they have different levels
