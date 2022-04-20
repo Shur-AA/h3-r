@@ -92,6 +92,10 @@ raster_to_hex = function(rast_obj, h3_level, intrp_method = 'bilinear'){
 tab1 = raster_to_hex(rast1, 7)
 tab2 = raster_to_hex(rast2, 7)
 
+tab1 = h3::h3_raster_to_hex(rast1, 7)
+tab2 = h3::h3_raster_to_hex(rast2, 8)
+
+
 local_raster_sum = h3::h3_simple_sum(tab1$h3_ind,
                                       tab1$z,
                                       tab2$h3_ind,
@@ -106,7 +110,8 @@ zonal_raster_sum = h3::h3_zonal_statistics(tab1$h3_ind,
                                           as.integer(tab1$z),
                                           tab2$h3_ind,
                                           tab2$z,
-                                          stat_type) %>%
+                                          stat_type,
+                                          TRUE) %>%
                                           do.call(rbind, .) %>%
                                           as.data.frame() %>%
                                           mutate(ind = rownames(.))

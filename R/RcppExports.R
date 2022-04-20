@@ -160,6 +160,10 @@ rcpp_get_destination_h3_index_from_unidirectional_edge <- function(h3EdgeStr) {
     .Call(`_h3_rcpp_get_destination_h3_index_from_unidirectional_edge`, h3EdgeStr)
 }
 
+H3_to_parent <- function(h3s, res) {
+    .Call(`_h3_H3_to_parent`, h3s, res)
+}
+
 points_to_H3 <- function(lon, lat, res) {
     .Call(`_h3_points_to_H3`, lon, lat, res)
 }
@@ -180,7 +184,7 @@ global_extremum <- function(ind, z, func) {
     .Call(`_h3_global_extremum`, ind, z, func)
 }
 
-zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type) {
-    .Call(`_h3_zonal_statistics`, zone_ind, zone_z, rast_ind, rast_z, stat_type)
+zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone) {
+    .Call(`_h3_zonal_statistics`, zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone)
 }
 

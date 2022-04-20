@@ -320,6 +320,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// H3_to_parent
+std::string H3_to_parent(std::string h3s, int res);
+RcppExport SEXP _h3_H3_to_parent(SEXP h3sSEXP, SEXP resSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type h3s(h3sSEXP);
+    Rcpp::traits::input_parameter< int >::type res(resSEXP);
+    rcpp_result_gen = Rcpp::wrap(H3_to_parent(h3s, res));
+    return rcpp_result_gen;
+END_RCPP
+}
 // points_to_H3
 std::vector<std::string> points_to_H3(const std::vector<double>& lon, const std::vector<double>& lat, const int& res);
 RcppExport SEXP _h3_points_to_H3(SEXP lonSEXP, SEXP latSEXP, SEXP resSEXP) {
@@ -387,8 +399,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // zonal_statistics
-std::map <std::string, std::vector<double>> zonal_statistics(std::vector<std::string>& zone_ind, std::vector<double>& zone_z, std::vector<std::string>& rast_ind, std::vector<double>& rast_z, const std::string stat_type);
-RcppExport SEXP _h3_zonal_statistics(SEXP zone_indSEXP, SEXP zone_zSEXP, SEXP rast_indSEXP, SEXP rast_zSEXP, SEXP stat_typeSEXP) {
+std::map <std::string, std::vector<double>> zonal_statistics(std::vector<std::string>& zone_ind, std::vector<double>& zone_z, std::vector<std::string>& rast_ind, std::vector<double>& rast_z, const std::string stat_type, const bool resample_zone);
+RcppExport SEXP _h3_zonal_statistics(SEXP zone_indSEXP, SEXP zone_zSEXP, SEXP rast_indSEXP, SEXP rast_zSEXP, SEXP stat_typeSEXP, SEXP resample_zoneSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -397,7 +409,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type rast_ind(rast_indSEXP);
     Rcpp::traits::input_parameter< std::vector<double>& >::type rast_z(rast_zSEXP);
     Rcpp::traits::input_parameter< const std::string >::type stat_type(stat_typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type));
+    Rcpp::traits::input_parameter< const bool >::type resample_zone(resample_zoneSEXP);
+    rcpp_result_gen = Rcpp::wrap(zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -430,12 +443,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_get_h3_unidirectional_edges_from_hexagon", (DL_FUNC) &_h3_rcpp_get_h3_unidirectional_edges_from_hexagon, 1},
     {"_h3_rcpp_get_origin_h3_index_from_unidirectional_edge", (DL_FUNC) &_h3_rcpp_get_origin_h3_index_from_unidirectional_edge, 1},
     {"_h3_rcpp_get_destination_h3_index_from_unidirectional_edge", (DL_FUNC) &_h3_rcpp_get_destination_h3_index_from_unidirectional_edge, 1},
+    {"_h3_H3_to_parent", (DL_FUNC) &_h3_H3_to_parent, 2},
     {"_h3_points_to_H3", (DL_FUNC) &_h3_points_to_H3, 3},
     {"_h3_hex_centers_inbbox", (DL_FUNC) &_h3_hex_centers_inbbox, 3},
     {"_h3_resample_down", (DL_FUNC) &_h3_resample_down, 3},
     {"_h3_simple_sum", (DL_FUNC) &_h3_simple_sum, 4},
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
-    {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 5},
+    {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
     {NULL, NULL, 0}
 };
 

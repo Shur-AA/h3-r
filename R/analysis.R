@@ -171,6 +171,6 @@ h3_zonal_sum <- function(zone_ind, zone_z, rast_ind, rast_z) {
 #' and statistics in each zone
 #'
 #' @export
-h3_zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type) {
-  zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type)
+h3_zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone) {
+  zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone)
 }

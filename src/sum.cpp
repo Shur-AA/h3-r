@@ -132,8 +132,23 @@ double least_frequent_element(std::vector<double> &arr)
   return leastElement ;
 }
 
+// [[Rcpp::export]]
+std::string H3_to_parent(std::string h3s,
+                         int res) {
+  std::string z;
+  H3Index h3 = stringToH3(h3s.std::string::c_str());
+  H3Index h3Parent = h3ToParent(h3, res);
+  char h3ParentStr[17];
+  h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
+  z = h3ParentStr;
+  return z;
+}
+
 
 // END internal functions
+
+
+
 
 
 
@@ -361,7 +376,8 @@ std::map <std::string, std::vector<double>> zonal_statistics(
                                           std::vector<double> & zone_z,
                                           std::vector<std::string> & rast_ind,
                                           std::vector<double> & rast_z,
-                                          const std::string stat_type){
+                                          const std::string stat_type,
+                                          const bool resample_zone){
   int h3_level_zone = h3GetResolution(stringToH3(zone_ind[0].std::string::c_str()));
   int h3_level_rast = h3GetResolution(stringToH3(rast_ind[0].std::string::c_str()));
 
@@ -375,8 +391,12 @@ std::map <std::string, std::vector<double>> zonal_statistics(
   // проверить, как себя ведёт с NA и NaN
   // написать обработчики ошибок (почти)
 
+  // level relationships: 0 - equal; 1 - raster's coarser; 2 - zones're coarser
+  int resample_status = 0;
+
   // if zones have finer resolution - resample raster
   if (h3_level_zone > h3_level_rast){
+    resample_status = 1;
     std::map <std::string, double> new_rast_ind = resample_down(h3_level_zone,
                                                                 rast_ind,
                                                                 rast_z);
@@ -392,6 +412,7 @@ std::map <std::string, std::vector<double>> zonal_statistics(
 
   // otherwise - resample zones
   if (h3_level_zone < h3_level_rast){
+    resample_status = 2;
     std::map <std::string, double> new_zone_ind = resample_down(h3_level_rast,
                                                                 zone_ind,
                                                                 zone_z);
@@ -464,6 +485,18 @@ std::map <std::string, std::vector<double>> zonal_statistics(
     zone_result.push_back(result_zone_vals[i]);
     zonalstats[zone_ind[i]] = zone_result;
   }
-  return zonalstats;
+
+  if ((resample_status == 2 && resample_zone) ||
+      (resample_status == 1) ||
+      (resample_status == 0)){
+    return zonalstats;
+  } else if (resample_status == 2 && !resample_zone ){
+    std::map <std::string, std::vector<double>> old_zone;
+    for (auto const & pair : zonalstats){
+      std::string zone_cell = H3_to_parent(pair.first, h3_level_zone);
+      old_zone[zone_cell] = pair.second;
+  }
+    return old_zone;
+  }
 }
 

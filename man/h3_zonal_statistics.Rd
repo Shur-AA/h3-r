@@ -7,7 +7,14 @@ second raster which corresponds to H3 cells in the first
 raster's zones, i.e. cells that share the same value;
 resamples one raster if they have different levels}
 \usage{
-h3_zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type)
+h3_zonal_statistics(
+  zone_ind,
+  zone_z,
+  rast_ind,
+  rast_z,
+  stat_type,
+  resample_zone
+)
 }
 \arguments{
 \item{stat_type}{}
