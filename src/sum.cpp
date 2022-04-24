@@ -490,7 +490,7 @@ std::map <std::string, std::vector<double>> zonal_statistics(
       (resample_status == 1) ||
       (resample_status == 0)){
     return zonalstats;
-  } else if (resample_status == 2 && !resample_zone ){
+  } else if (resample_status == 2 && !resample_zone){
     std::map <std::string, std::vector<double>> old_zone;
     for (auto const & pair : zonalstats){
       std::string zone_cell = H3_to_parent(pair.first, h3_level_zone);
@@ -500,3 +500,33 @@ std::map <std::string, std::vector<double>> zonal_statistics(
   }
 }
 
+
+// Returns cell neighbours of defined order and less with the cell itself
+
+// [[Rcpp::export]]
+std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
+    H3Index h3 = stringToH3(h3s.std::string::c_str());
+    int n = maxKringSize(radius);
+    H3Index* out = new H3Index[n]();
+    kRing(h3, radius, out);
+    int counter = 0;
+    for (int i = 0; i < n; ++i) {
+      if (out[i] != 0) {
+        ++counter;
+      }
+    }
+
+    std::vector<std::string> v(counter);
+    for(int i = 0; i < counter; ++i) {
+      char h3s[17];
+      h3ToString(out[i], h3s, sizeof(h3s));
+      v[i] = h3s;
+    }
+
+    // free(out);
+    delete[] out;
+    return v;
+  }
+
+
+// Calculates max and min in focal window

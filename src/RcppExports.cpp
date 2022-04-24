@@ -414,6 +414,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cell_vecinity
+std::vector<std::string> cell_vecinity(std::string h3s, int radius);
+RcppExport SEXP _h3_cell_vecinity(SEXP h3sSEXP, SEXP radiusSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type h3s(h3sSEXP);
+    Rcpp::traits::input_parameter< int >::type radius(radiusSEXP);
+    rcpp_result_gen = Rcpp::wrap(cell_vecinity(h3s, radius));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -450,6 +462,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_simple_sum", (DL_FUNC) &_h3_simple_sum, 4},
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
     {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
+    {"_h3_cell_vecinity", (DL_FUNC) &_h3_cell_vecinity, 2},
     {NULL, NULL, 0}
 };
 

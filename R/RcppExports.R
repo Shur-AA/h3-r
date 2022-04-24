@@ -188,3 +188,7 @@ zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type, resa
     .Call(`_h3_zonal_statistics`, zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone)
 }
 
+cell_vecinity <- function(h3s, radius) {
+    .Call(`_h3_cell_vecinity`, h3s, radius)
+}
+

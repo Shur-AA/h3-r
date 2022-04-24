@@ -156,3 +156,17 @@ h3_global_extremum <- function(ind, z, func) {
 h3_zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone) {
   zonal_statistics(zone_ind, zone_z, rast_ind, rast_z, stat_type, resample_zone)
 }
+
+
+#' Returns cell neighbours of defined order and less with the cell itself
+#'
+#' @param h3s
+#' @param radius
+#'
+#'
+#' @return cell neighbors of defined order and less with the cell itself
+#'
+#' @export
+h3_cell_vecinity <- function(h3s, radius) {
+  cell_vecinity(h3s, radius)
+}

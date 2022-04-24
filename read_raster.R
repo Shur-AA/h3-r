@@ -14,8 +14,6 @@ rast2 = read_stars(rpath2) # input 1-band raster file 2
 
 
 
-tab1 = h3::h3_raster_to_hex(rast1, 7)
-tab2 = h3::h3_raster_to_hex(rast2, 7)
 
 tab1 = h3::h3_raster_to_hex(rast1, 7)
 tab2 = h3::h3_raster_to_hex(rast2, 8)
@@ -36,7 +34,7 @@ zonal_raster_sum = h3::h3_zonal_statistics(tab1$h3_ind,
                                           tab2$h3_ind,
                                           tab2$z,
                                           stat_type,
-                                          TRUE) %>%
+                                          F) %>%
                                           do.call(rbind, .) %>%
                                           as.data.frame() %>%
                                           mutate(ind = rownames(.))
