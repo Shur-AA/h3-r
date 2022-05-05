@@ -170,3 +170,30 @@ h3_zonal_statistics <- function(zone_ind, zone_z, rast_ind, rast_z, stat_type, r
 h3_cell_vecinity <- function(h3s, radius) {
   cell_vecinity(h3s, radius)
 }
+
+
+#' Returns hexs after simple focal operations, without matrices
+#'
+#' @param inds
+#' @param z
+#' @param stat_type
+#'
+#' @return map of H3 indexes and corresponding z-values
+#'
+#' @export
+h3_simple_focal <- function(inds, z, stat_type) {
+  simple_focal(inds, z, stat_type)
+}
+
+
+#' Returns geographic coordinates for vector of hex indexes
+#'
+#' @param inds
+#'
+#' @return map of H3 indexes and corresponding z-values
+#'
+#' @export
+h3_indexes_to_coords <- function(inds) {
+  indexes_to_coords(inds)
+}
+

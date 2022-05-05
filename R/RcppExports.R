@@ -192,3 +192,11 @@ cell_vecinity <- function(h3s, radius) {
     .Call(`_h3_cell_vecinity`, h3s, radius)
 }
 
+simple_focal <- function(inds, z, stat_type) {
+    .Call(`_h3_simple_focal`, inds, z, stat_type)
+}
+
+indexes_to_coords <- function(inds) {
+    .Call(`_h3_indexes_to_coords`, inds)
+}
+

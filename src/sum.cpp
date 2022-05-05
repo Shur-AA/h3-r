@@ -501,7 +501,7 @@ std::map <std::string, std::vector<double>> zonal_statistics(
 }
 
 
-// Returns cell neighbours of defined order and less with the cell itself
+// Returns cell neighbors of defined order and less with the cell itself
 
 // [[Rcpp::export]]
 std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
@@ -529,4 +529,93 @@ std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
   }
 
 
-// Calculates max and min in focal window
+// Calculates base statistics in focal window
+
+// [[Rcpp::export]]
+std::map <std::string, double> simple_focal(std::vector<std::string> & inds,
+                                            std::vector<double> & z,
+                                            const std::string stat_type){
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = inds.size();
+  std::map <std::string, double> result;
+  for (int i = 0; i < n; i++){
+    std::string this_ind = inds[i]; // current cell
+    std::vector<std::string> this_vecinity = cell_vecinity(this_ind, h3_level); // current cell neighbors
+    // get values in focal window
+    std::vector<double> initial_vals;
+    for (int j = 0; j < n; j++){
+      for (auto const & vec_ind : this_vecinity){
+        if (inds[j] == vec_ind){
+          initial_vals.push_back(z[j]);
+        }
+      }
+    }
+    // calculate statistic in focal window
+
+    double w_result = 0.0;
+    if (stat_type == "min"){
+      w_result = *min_element(std::begin(initial_vals),
+                                 std::end(initial_vals));
+    } else if (stat_type == "max"){
+      w_result = *max_element(std::begin(initial_vals),
+                                 std::end(initial_vals));
+    } else if (stat_type == "avg"){
+      w_result = vector_average(initial_vals);
+    } else if (stat_type == "sum"){
+      for (auto val : initial_vals){
+        if (!std::isnan(val)){
+          w_result += val;
+        }}
+    } else if (stat_type == "majority"){
+      w_result = most_frequent_element(initial_vals);
+    } else if (stat_type == "minority"){
+      w_result = least_frequent_element(initial_vals);
+    } else {
+      w_result = -0.0;
+    }
+    // write the result into hexs
+    result[inds[i]] = w_result;
+  }
+  return result;
+  }
+
+
+
+
+// Calculates hex's centers coordinates
+
+// [[Rcpp::export]]
+std::map <std::string, std::vector<double>> indexes_to_coords(std::vector<std::string> & inds){
+  std::map <std::string, std::vector<double>> geotab;
+  int numHexagons = inds.size();
+  for (int i = 0; i < numHexagons; i++) {
+      GeoCoord hex_center;
+      std::vector<double> centroid_coords;
+      H3Index h3 = stringToH3(inds[i].std::string::c_str());
+      h3ToGeo(h3, &hex_center);
+      centroid_coords.push_back(radsToDegs(hex_center.lon));
+      centroid_coords.push_back(radsToDegs(hex_center.lat));
+      geotab[inds[i]] = centroid_coords;
+  }
+  return geotab;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

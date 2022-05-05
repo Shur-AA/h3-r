@@ -426,6 +426,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// simple_focal
+std::map <std::string, double> simple_focal(std::vector<std::string>& inds, std::vector<double>& z, const std::string stat_type);
+RcppExport SEXP _h3_simple_focal(SEXP indsSEXP, SEXP zSEXP, SEXP stat_typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type stat_type(stat_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(simple_focal(inds, z, stat_type));
+    return rcpp_result_gen;
+END_RCPP
+}
+// indexes_to_coords
+std::map <std::string, std::vector<double>> indexes_to_coords(std::vector<std::string>& inds);
+RcppExport SEXP _h3_indexes_to_coords(SEXP indsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    rcpp_result_gen = Rcpp::wrap(indexes_to_coords(inds));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -463,6 +487,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
     {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
     {"_h3_cell_vecinity", (DL_FUNC) &_h3_cell_vecinity, 2},
+    {"_h3_simple_focal", (DL_FUNC) &_h3_simple_focal, 3},
+    {"_h3_indexes_to_coords", (DL_FUNC) &_h3_indexes_to_coords, 1},
     {NULL, NULL, 0}
 };
 

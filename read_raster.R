@@ -41,4 +41,19 @@ zonal_raster_sum = h3::h3_zonal_statistics(tab1$h3_ind,
 rownames(zonal_raster_sum) = seq(1, length(zonal_raster_sum$ind), 1)
 colnames(zonal_raster_sum) = c('zone_code', stat_type, 'hex_ind')
 
+focal_raster = h3::h3_simple_focal(tab1$h3_ind,
+                                   tab1$z,
+                                   stat_type) %>%
+                                    list() %>%
+                                    do.call(rbind, .) %>%
+                                    as.data.frame() %>%
+                                    pivot_longer(cols = everything(),
+                                                 names_to = 'indexes',
+                                                 values_to = 'values')
+coords_focal = h3::h3_indexes_to_coords(focal_raster$indexes)%>%
+                                        do.call(rbind, .) %>%
+                                        as.data.frame()
+coords_focal$ind = rownames(coords_focal)
+colnames(coords_focal) = c('lon_hex', 'lat_hex', 'ind')
+rownames(coords_focal) = seq(1, length(coords_focal$ind), 1)
 
