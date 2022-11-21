@@ -427,15 +427,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // simple_focal
-std::map <std::string, double> simple_focal(std::vector<std::string>& inds, std::vector<double>& z, const std::string stat_type);
-RcppExport SEXP _h3_simple_focal(SEXP indsSEXP, SEXP zSEXP, SEXP stat_typeSEXP) {
+std::map <std::string, double> simple_focal(std::vector<std::string>& inds, std::vector<double>& z, const std::string stat_type, int vecinity);
+RcppExport SEXP _h3_simple_focal(SEXP indsSEXP, SEXP zSEXP, SEXP stat_typeSEXP, SEXP vecinitySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
     Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
     Rcpp::traits::input_parameter< const std::string >::type stat_type(stat_typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(simple_focal(inds, z, stat_type));
+    Rcpp::traits::input_parameter< int >::type vecinity(vecinitySEXP);
+    rcpp_result_gen = Rcpp::wrap(simple_focal(inds, z, stat_type, vecinity));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -447,6 +448,30 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
     rcpp_result_gen = Rcpp::wrap(indexes_to_coords(inds));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cell_azimuth
+double cell_azimuth(std::string& h3_index);
+RcppExport SEXP _h3_cell_azimuth(SEXP h3_indexSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string& >::type h3_index(h3_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(cell_azimuth(h3_index));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gradient_aspect
+std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::string>& inds, std::vector<double>& z, const std::string stat_type);
+RcppExport SEXP _h3_gradient_aspect(SEXP indsSEXP, SEXP zSEXP, SEXP stat_typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< const std::string >::type stat_type(stat_typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(gradient_aspect(inds, z, stat_type));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -487,8 +512,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
     {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
     {"_h3_cell_vecinity", (DL_FUNC) &_h3_cell_vecinity, 2},
-    {"_h3_simple_focal", (DL_FUNC) &_h3_simple_focal, 3},
+    {"_h3_simple_focal", (DL_FUNC) &_h3_simple_focal, 4},
     {"_h3_indexes_to_coords", (DL_FUNC) &_h3_indexes_to_coords, 1},
+    {"_h3_cell_azimuth", (DL_FUNC) &_h3_cell_azimuth, 1},
+    {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
     {NULL, NULL, 0}
 };
 

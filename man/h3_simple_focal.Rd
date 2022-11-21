@@ -4,10 +4,10 @@
 \alias{h3_simple_focal}
 \title{Returns hexs after simple focal operations, without matrices}
 \usage{
-h3_simple_focal(inds, z, stat_type)
+h3_simple_focal(inds, z, stat_type, vecinity)
 }
 \arguments{
-\item{stat_type}{}
+\item{vecinity}{}
 }
 \value{
 map of H3 indexes and corresponding z-values

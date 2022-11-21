@@ -28,7 +28,7 @@ local_raster_sum = h3::h3_simple_sum(tab1$h3_ind,
 global_raster_stat = h3::h3_global_extremum(tab2$h3_ind,
                                             tab2$z,
                                             'max')
-stat_type = 'minority'
+stat_type = 'sum'
 zonal_raster_sum = h3::h3_zonal_statistics(tab1$h3_ind,
                                           as.integer(tab1$z),
                                           tab2$h3_ind,
@@ -43,7 +43,7 @@ colnames(zonal_raster_sum) = c('zone_code', stat_type, 'hex_ind')
 
 focal_raster = h3::h3_simple_focal(tab1$h3_ind,
                                    tab1$z,
-                                   stat_type) %>%
+                                   stat_type, 2) %>%
                                     list() %>%
                                     do.call(rbind, .) %>%
                                     as.data.frame() %>%
@@ -56,4 +56,11 @@ coords_focal = h3::h3_indexes_to_coords(focal_raster$indexes)%>%
 coords_focal$ind = rownames(coords_focal)
 colnames(coords_focal) = c('lon_hex', 'lat_hex', 'ind')
 rownames(coords_focal) = seq(1, length(coords_focal$ind), 1)
+coords_focal = cbind(coords_focal, focal_raster$values)
+#write.csv(coords_focal, "C:/Users/a.shurygina/Downloads/testfoc2_h3.csv")
+
+
+hi = c('81263ffffffffff', '81267ffffffffff', '8126bffffffffff', '8126fffffffffff',
+       '81273ffffffffff', '81277ffffffffff', '8127bffffffffff')
+g = lapply(hi, function(X){h3_cell_azimuth(X)})
 

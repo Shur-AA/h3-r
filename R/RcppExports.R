@@ -192,11 +192,19 @@ cell_vecinity <- function(h3s, radius) {
     .Call(`_h3_cell_vecinity`, h3s, radius)
 }
 
-simple_focal <- function(inds, z, stat_type) {
-    .Call(`_h3_simple_focal`, inds, z, stat_type)
+simple_focal <- function(inds, z, stat_type, vecinity) {
+    .Call(`_h3_simple_focal`, inds, z, stat_type, vecinity)
 }
 
 indexes_to_coords <- function(inds) {
     .Call(`_h3_indexes_to_coords`, inds)
+}
+
+cell_azimuth <- function(h3_index) {
+    .Call(`_h3_cell_azimuth`, h3_index)
+}
+
+gradient_aspect <- function(inds, z, stat_type) {
+    .Call(`_h3_gradient_aspect`, inds, z, stat_type)
 }
 

@@ -13,6 +13,261 @@ using namespace Rcpp;
 
 // internal functions
 
+
+// Dictionary of base cell's azimuth
+
+const std::map<std::string, int> bc_azimuth = {{"0", 218.290385106721},
+                                               {"1", 342.583876444099},
+                                               {"2", 339.565502292778},
+                                               {"3", 84.3385298378604},
+                                               {"4", 309.370561217946},
+                                               {"5", 276.5900234123},
+                                               {"6", 30.8781696149839},
+                                               {"7", 49.4270946789126},
+                                               {"8", 302.412537716117},
+                                               {"9", 10.309674146324},
+                                               {"10", 313.713538667284},
+                                               {"11", 351.262408773729},
+                                               {"12", 38.6755104962345},
+                                               {"13", 16.203220736166},
+                                               {"14", 51.8304080271509},
+                                               {"15", 351.418122951382},
+                                               {"16", 324.654296125929},
+                                               {"17", 183.619278114153},
+                                               {"18", 347.400874108958},
+                                               {"19", 31.5197544157351},
+                                               {"20", 194.292400567454},
+                                               {"21", 53.6359872457783},
+                                               {"22", 305.92918709196},
+                                               {"23", 156.106574124094},
+                                               {"24", 12.1123540059164},
+                                               {"25", 179.562675767721},
+                                               {"26", 26.6518863318642},
+                                               {"27", 11.1114107906054},
+                                               {"28", 342.054997414918},
+                                               {"29", 11.171294409814},
+                                               {"30", 332.477144661756},
+                                               {"31", 352.642886995835},
+                                               {"32", 156.342216403357},
+                                               {"33", 316.16716182498},
+                                               {"34", 210.123976043561},
+                                               {"35", 3.49775618632267},
+                                               {"36", 201.943635115208},
+                                               {"37", 339.144602932168},
+                                               {"38", 64.9026064632485},
+                                               {"39", 160.943040770228},
+                                               {"40", 192.008848045182},
+                                               {"41", 2.03374355122804},
+                                               {"42", 32.5983362216963},
+                                               {"43", 21.8281266741111},
+                                               {"44", 344.122232295351},
+                                               {"45", 172.289232907796},
+                                               {"46", 8.69772604604191},
+                                               {"47", 200.987258088485},
+                                               {"48", 152.053073103989},
+                                               {"49", 16.0766806573519},
+                                               {"50", 154.286266938449},
+                                               {"51", 26.2878483356397},
+                                               {"52", 339.664766874379},
+                                               {"53", 352.791355525612},
+                                               {"54", 28.1169255496121},
+                                               {"55", 200.509893355518},
+                                               {"56", 2.54477171830757},
+                                               {"57", 340.264280022697},
+                                               {"58", 43.8339582496727},
+                                               {"59", 342.67812404629},
+                                               {"60", 11.7546917007767},
+                                               {"61", 168.74765842802},
+                                               {"62", 197.866305499552},
+                                               {"63", 208.932797684863},
+                                               {"64", 200.701445646274},
+                                               {"65", 177.167110342362},
+                                               {"66", 339.725522359102},
+                                               {"67", 152.83178440706},
+                                               {"68", 188.364439173619},
+                                               {"69", 201.275860528836},
+                                               {"70", 154.992950055343},
+                                               {"71", 25.7049920546076},
+                                               {"72", 237.314462121582},
+                                               {"73", 27.8526255167888},
+                                               {"74", 338.916723724987},
+                                               {"75", 172.831789016884},
+                                               {"76", 7.52112264225278},
+                                               {"77", 195.273860935452},
+                                               {"78", 160.001250135935},
+                                               {"79", 148.967469115864},
+                                               {"80", 179.511950449523},
+                                               {"81", 347.493721316135},
+                                               {"82", 18.5181979360588},
+                                               {"83", 189.546051224453},
+                                               {"84", 203.489398519783},
+                                               {"85", 337.120605701631},
+                                               {"86", 177.462866751602},
+                                               {"87", 328.943684095856},
+                                               {"88", 226.006616665999},
+                                               {"89", 22.7337106549417},
+                                               {"90", 190.184780622089},
+                                               {"91", 210.807506107484},
+                                               {"92", 171.242030503069},
+                                               {"93", 199.934580706627},
+                                               {"94", 172.4823059236},
+                                               {"95", 157.203247377055},
+                                               {"96", 8.33793896205384},
+                                               {"97", 244.235133490634},
+                                               {"98", 22.2006219025585},
+                                               {"99", 236.745771728884},
+                                               {"100", 129.376345184138},
+                                               {"101", 344.089509437182},
+                                               {"102", 154.191315929153},
+                                               {"103", 196.938994225748},
+                                               {"104", 354.47578585963},
+                                               {"105", 221.087675552151},
+                                               {"106", 194.939837836892},
+                                               {"107", 207.994313007577},
+                                               {"108", 169.135403579493},
+                                               {"109", 146.515544789238},
+                                               {"110", 197.672098858928},
+                                               {"111", 231.5110548796},
+                                               {"112", 177.628842629001},
+                                               {"113", 242.195406460574},
+                                               {"114", 138.903570883011},
+                                               {"115", 161.433226551426},
+                                               {"116", 260.50009696699},
+                                               {"117", 87.0886164367714},
+                                               {"118", 41.5910731408811},
+                                               {"119", 221.70146541449},
+                                               {"120", 173.054981967017},
+                                               {"121", 314.358924253677}};
+
+// Dictionary of base cell's hemisphere (where is 'up' for them)
+// 0 - northern hemisphere
+// 1 - southern hemisphere
+// 2 - pentagon
+
+const std::map<std::string, int> bc_hms = {{"0", 0},
+                                          {"1", 0},
+                                          {"2", 0},
+                                          {"3", 0},
+                                          {"4", 2},
+                                          {"5", 0},
+                                          {"6", 0},
+                                          {"7", 0},
+                                          {"8", 0},
+                                          {"9", 0},
+                                          {"10", 0},
+                                          {"11", 0},
+                                          {"12", 0},
+                                          {"13", 0},
+                                          {"14", 2},
+                                          {"15", 0},
+                                          {"16", 0},
+                                          {"17", 1},
+                                          {"18", 0},
+                                          {"19", 0},
+                                          {"20", 1},
+                                          {"21", 0},
+                                          {"22", 0},
+                                          {"23", 1},
+                                          {"24", 2},
+                                          {"25", 1},
+                                          {"26", 0},
+                                          {"27", 0},
+                                          {"28", 0},
+                                          {"29", 0},
+                                          {"30", 0},
+                                          {"31", 0},
+                                          {"32", 1},
+                                          {"33", 0},
+                                          {"34", 1},
+                                          {"35", 0},
+                                          {"36", 1},
+                                          {"37", 0},
+                                          {"38", 2},
+                                          {"39", 1},
+                                          {"40", 1},
+                                          {"41", 0},
+                                          {"42", 0},
+                                          {"43", 0},
+                                          {"44", 0},
+                                          {"45", 1},
+                                          {"46", 0},
+                                          {"47", 1},
+                                          {"48", 1},
+                                          {"49", 2},
+                                          {"50", 1},
+                                          {"51", 0},
+                                          {"52", 0},
+                                          {"53", 0},
+                                          {"54", 0},
+                                          {"55", 1},
+                                          {"56", 0},
+                                          {"57", 0},
+                                          {"58", 2},
+                                          {"59", 0},
+                                          {"60", 0},
+                                          {"61", 1},
+                                          {"62", 1},
+                                          {"63", 2},
+                                          {"64", 1},
+                                          {"65", 1},
+                                          {"66", 0},
+                                          {"67", 1},
+                                          {"68", 1},
+                                          {"69", 1},
+                                          {"70", 1},
+                                          {"71", 0},
+                                          {"72", 2},
+                                          {"73", 0},
+                                          {"74", 0},
+                                          {"75", 1},
+                                          {"76", 0},
+                                          {"77", 1},
+                                          {"78", 1},
+                                          {"79", 1},
+                                          {"80", 1},
+                                          {"81", 0},
+                                          {"82", 0},
+                                          {"83", 2},
+                                          {"84", 1},
+                                          {"85", 0},
+                                          {"86", 1},
+                                          {"87", 0},
+                                          {"88", 1},
+                                          {"89", 0},
+                                          {"90", 1},
+                                          {"91", 1},
+                                          {"92", 1},
+                                          {"93", 1},
+                                          {"94", 1},
+                                          {"95", 1},
+                                          {"96", 0},
+                                          {"97", 2},
+                                          {"98", 0},
+                                          {"99", 1},
+                                          {"100", 1},
+                                          {"101", 0},
+                                          {"102", 1},
+                                          {"103", 1},
+                                          {"104", 0},
+                                          {"105", 1},
+                                          {"106", 1},
+                                          {"107", 2},
+                                          {"108", 1},
+                                          {"109", 1},
+                                          {"110", 1},
+                                          {"111", 1},
+                                          {"112", 1},
+                                          {"113", 1},
+                                          {"114", 1},
+                                          {"115", 1},
+                                          {"116", 1},
+                                          {"117", 2},
+                                          {"118", 1},
+                                          {"119", 1},
+                                          {"120", 1},
+                                          {"121", 1}};
+
+
 // converts degrees to radians
 double deg_to_rad(const double & degs){
   const double pi = 3.14159265358979323846; // the value of pi
@@ -110,7 +365,7 @@ double least_frequent_element(std::vector<double> &arr)
   int leastCtr = arr.size();
   std::vector<double> temp_arr;
   for(int i = 0; i < arr.size(); i++)
-  {temp_arr.push_back(arr[i]);}
+    {temp_arr.push_back(arr[i]);}
   double leastElement = -99;
   double currentCtr =  1;
 
@@ -131,6 +386,72 @@ double least_frequent_element(std::vector<double> &arr)
   }
   return leastElement ;
 }
+
+
+// which part of an array has the same value as given
+double how_many_with_thesame_val(std::vector<double> &arr,
+                                 double that_val)
+{
+  int n = arr.size();
+  int dublicate_counter = 0;
+  for (int i = 0; i < n; ++i){
+    if (arr[i] == that_val){
+      ++dublicate_counter;
+    }
+  if (dublicate_counter > 0){
+    --dublicate_counter; // as kring vicinity includes center cell
+    --n;
+  }
+  }
+  return dublicate_counter / n;
+}
+
+
+
+// which part of an array has less values than given
+double how_many_with_less_val(std::vector<double> &arr,
+                              double that_val)
+{
+  int n = arr.size();
+  int counter = 0;
+  for (int i = 0; i < n; ++i){
+    if (arr[i] < that_val){
+      ++counter;
+    }
+    if (counter > 0){
+      --n;
+    }
+  }
+  return counter / n;
+}
+
+
+// which part of an array has greater values than given
+double how_many_with_greater_val(std::vector<double> &arr,
+                              double that_val)
+{
+  int n = arr.size();
+  int counter = 0;
+  for (int i = 0; i < n; ++i){
+    if (arr[i] > that_val){
+      ++counter;
+    }
+    if (counter > 0){
+      --n;
+    }
+  }
+  return counter / n;
+}
+
+
+// how many distinct values are in the array
+double unique_elements_num(std::vector<double> &arr)
+{
+  std::set<double> s(arr.begin(), arr.end());
+  return s.size();
+}
+
+
 
 // [[Rcpp::export]]
 std::string H3_to_parent(std::string h3s,
@@ -534,7 +855,8 @@ std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
 // [[Rcpp::export]]
 std::map <std::string, double> simple_focal(std::vector<std::string> & inds,
                                             std::vector<double> & z,
-                                            const std::string stat_type){
+                                            const std::string stat_type,
+                                            int vecinity){
   int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
   try{
     if (inds.size() != z.size()){
@@ -547,7 +869,7 @@ std::map <std::string, double> simple_focal(std::vector<std::string> & inds,
   std::map <std::string, double> result;
   for (int i = 0; i < n; i++){
     std::string this_ind = inds[i]; // current cell
-    std::vector<std::string> this_vecinity = cell_vecinity(this_ind, h3_level); // current cell neighbors
+    std::vector<std::string> this_vecinity = cell_vecinity(this_ind, vecinity); // current cell neighbors
     // get values in focal window
     std::vector<double> initial_vals;
     for (int j = 0; j < n; j++){
@@ -577,6 +899,17 @@ std::map <std::string, double> simple_focal(std::vector<std::string> & inds,
       w_result = most_frequent_element(initial_vals);
     } else if (stat_type == "minority"){
       w_result = least_frequent_element(initial_vals);
+    } else if (stat_type == "procent"){
+      double this_val = z[i]; // current central cell value
+      w_result = how_many_with_thesame_val(initial_vals, this_val);
+    } else if (stat_type == "procentile_less"){
+      double this_val = z[i];
+      w_result = how_many_with_less_val(initial_vals, this_val);
+    } else if (stat_type == "procentile_more"){
+      double this_val = z[i];
+      w_result = how_many_with_greater_val(initial_vals, this_val);
+    } else if (stat_type == "variety"){
+      w_result = unique_elements_num(initial_vals);
     } else {
       w_result = -0.0;
     }
@@ -585,7 +918,6 @@ std::map <std::string, double> simple_focal(std::vector<std::string> & inds,
   }
   return result;
   }
-
 
 
 
@@ -609,9 +941,102 @@ std::map <std::string, std::vector<double>> indexes_to_coords(std::vector<std::s
 
 
 
+// Calculates azimuth of a cell
+
+// [[Rcpp::export]]
+double cell_azimuth(std::string & h3_index){
+  int h3_level = h3GetResolution(stringToH3(h3_index.std::string::c_str()));
+  H3Index h3 = stringToH3(h3_index.std::string::c_str());
+  int bc = h3GetBaseCell(h3);
+  double azimuth = bc_azimuth.at(std::to_string(bc));
+  if (h3_level % 2 != 0){
+    azimuth = azimuth - 19.1066053508691;
+  }
+  return azimuth;
+}
 
 
+// Calculates gradient and aspect in focal window
 
+// [[Rcpp::export]]
+std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::string> & inds,
+                                                           std::vector<double> & z,
+                                                           const std::string stat_type){
+  std::map <std::string, std::vector<double>> geotab;
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = inds.size();
+  std::map <std::string, double> result;
+
+  for (int i = 0; i < n; i++){
+    std::string this_ind = inds[i]; // current cell
+    std::vector<std::string> this_vecinity = cell_vecinity(this_ind, 1); // current cell immediate neighbors
+    // get values in focal window
+    // assume that order in this_vecinity = in initial_vals
+    std::vector<double> initial_vals;
+    // coords of central cell vertices
+    std::vector<double> px1;
+    std::vector<double> py1;
+    std::vector<double> px2;
+    std::vector<double> py2;
+    for (auto const & vec_ind : this_vecinity){
+      for (int j = 0; j < n; j++){
+        if (inds[j] == vec_ind){
+          initial_vals.push_back(z[j]);
+        }
+      }
+      if (vec_ind != this_ind){
+        // find the edge between center and current neighbor cell
+        H3Index h3Origin = H3_EXPORT(stringToH3)(this_ind.std::string::c_str());
+        H3Index h3Destination = H3_EXPORT(stringToH3)(vec_ind.std::string::c_str());
+        H3Index h3Edge = H3_EXPORT(getH3UnidirectionalEdge)(h3Origin, h3Destination);
+        // get coords of the edge vertices
+        GeoBoundary geoBoundary;
+        H3_EXPORT(getH3UnidirectionalEdgeBoundary)(h3Edge, &geoBoundary);
+        px1.push_back(radsToDegs(geoBoundary.verts[0].lon));
+        py1.push_back(radsToDegs(geoBoundary.verts[0].lat));
+        px2.push_back(radsToDegs(geoBoundary.verts[1].lon));
+        py2.push_back(radsToDegs(geoBoundary.verts[1].lat));
+      } else{
+        // get coords of the current central cell
+        uint64_t h3 = stringToH3(this_ind.std::string::c_str());
+        GeoCoord geoCoord;
+        h3ToGeo(h3, &geoCoord);
+        px1.push_back(radsToDegs(geoCoord.lon));
+        py1.push_back(radsToDegs(geoCoord.lat));
+        px2.push_back(-1);
+        py2.push_back(-1);
+      }
+    }
+    // calculating average values for central cell vertices on 3 cells
+    int vnum = this_vecinity.size();
+    std::vector<double> vert_avg; // array for average values plus central value
+    for (int k = 0; k < vnum; ++k){
+      if (this_vecinity[k] == this_ind){
+        vert_avg.push_back(z[i]);
+      } else{
+        for (int g = 0; g < vnum; ++g){
+          if ((px1[k] == px2[g]) && (py1[k] == py2[g])){
+            std::vector<double> triple_vals{z[i], initial_vals[k], initial_vals[g]};
+            vert_avg.push_back(vector_average(triple_vals));
+          }
+        }
+      }
+    }
+
+
+  // тестовая выгрузка!
+    geotab[this_ind] = py1;
+
+  }
+  return geotab;
+}
 
 
 

@@ -177,12 +177,13 @@ h3_cell_vecinity <- function(h3s, radius) {
 #' @param inds
 #' @param z
 #' @param stat_type
+#' @param vecinity
 #'
 #' @return map of H3 indexes and corresponding z-values
 #'
 #' @export
-h3_simple_focal <- function(inds, z, stat_type) {
-  simple_focal(inds, z, stat_type)
+h3_simple_focal <- function(inds, z, stat_type, vecinity) {
+  simple_focal(inds, z, stat_type, vecinity)
 }
 
 
@@ -197,3 +198,14 @@ h3_indexes_to_coords <- function(inds) {
   indexes_to_coords(inds)
 }
 
+
+#' Returns geodesic azimuth for a cell by its hex index
+#'
+#' @param h3_index string index of the cell
+#'
+#' @return double value of the azimuth
+#'
+#' @export
+h3_cell_azimuth <- function(h3_index) {
+  cell_azimuth(h3_index)
+}
