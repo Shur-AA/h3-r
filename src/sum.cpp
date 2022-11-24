@@ -6,6 +6,7 @@
 #include <map>
 #include <algorithm>
 #include <set>
+#include <math.h>
 
 
 using namespace Rcpp;
@@ -422,7 +423,7 @@ double how_many_with_less_val(std::vector<double> &arr,
       --n;
     }
   }
-  return counter / n;
+  return (counter * 1.0) / (n * 1.0);
 }
 
 
@@ -440,7 +441,7 @@ double how_many_with_greater_val(std::vector<double> &arr,
       --n;
     }
   }
-  return counter / n;
+  return (counter * 1.0) / (n * 1.0);
 }
 
 
@@ -463,6 +464,223 @@ std::string H3_to_parent(std::string h3s,
   h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
   z = h3ParentStr;
   return z;
+}
+
+
+// calculates 3x3 matrices determinant
+double get_33_determinant(double a11, double a12, double a13,
+                          double a21, double a22, double a23,
+                          double a31, double a32, double a33){
+  return a11 * a22 * a33 - a11 * a23 * a32 - a12 * a21 * a33 +
+          a12 * a23 * a31 + a13 * a21 * a32 - a13 * a22 * a31;
+}
+
+
+// calculates 2x2 matrices determinant
+double get_22_determinant(double a11, double a12,
+                          double a21, double a22){
+  return a11 * a22 - a12 * a21;
+}
+
+
+
+// finds coefficients of the plane equation which approximates several points (N > 3)
+// https://pikabu.ru/story/postroenie_ploskosti_oblaku_tochek_metodom_naimenshikh_kvadratov_8125372
+
+std::vector<double> get_plane_coefs(std::vector<double> & xx,
+                                    std::vector<double> & yy,
+                                    std::vector<double> & zz){
+  try{
+    if (xx.size() != yy.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  try{
+    if (xx.size() != zz.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = xx.size();
+
+  double sumX = 0;
+  double sumY = 0;
+  double sumZ = 0;
+  double sumX2 = 0;
+  double sumY2 = 0;
+  double sumZ2 = 0;
+  double sumXY = 0;
+  double sumYZ = 0;
+  double sumZX = 0;
+  for (int i; i < n; ++i){
+    sumX += xx[i];
+    sumY += yy[i];
+    sumZ += zz[i];
+    sumX2 += (xx[i] * xx[i]);
+    sumY2 += (yy[i] * yy[i]);
+    sumZ2 += (zz[i] * zz[i]);
+    sumXY += (xx[i] * yy[i]);
+    sumYZ += (yy[i] * zz[i]);
+    sumZX += (zz[i] * xx[i]);
+  }
+  double x_x = sumX2 - (sumX * sumX) / n;
+  double y_y = sumY2 - (sumY * sumY) / n;
+  double z_z = sumZ2 - (sumZ * sumZ) / n;
+  double x_y = sumXY - (sumX * sumY) / n;
+  double y_z = sumYZ - (sumY * sumZ) / n;
+  double z_x = sumZX - (sumZ * sumX) / n;
+
+  double detA1 = get_33_determinant(1, x_y, z_x, 1, y_y, y_z, 1, y_z, z_z);
+  double detB1 = get_33_determinant(x_x, 1, z_x, x_y, 1, y_z, z_x, 1, z_z);
+  double detC1 = get_33_determinant(x_x, x_y, 1, x_y, y_y, 1, z_x, y_z, 1);
+
+  double l1 = sqrt(detA1 * detA1 + detB1 * detB1 + detC1 * detC1);
+
+  double detA2 = get_33_determinant(-1, x_y, z_x, 1, y_y, y_z, 1, y_z, z_z);
+  double detB2 = get_33_determinant(x_x, -1, z_x, x_y, 1, y_z, z_x, 1, z_z);
+  double detC2 = get_33_determinant(x_x, x_y, -1, x_y, y_y, 1, z_x, y_z, 1);
+
+  double l2 = sqrt(detA2 * detA2 + detB2 * detB2 + detC2 * detC2);
+
+  double detA3 = get_33_determinant(1, x_y, z_x, 1, y_y, y_z, -1, y_z, z_z);
+  double detB3 = get_33_determinant(x_x, 1, z_x, x_y, 1, y_z, z_x, -1, z_z);
+  double detC3 = get_33_determinant(x_x, x_y, 1, x_y, y_y, 1, z_x, y_z, -1);
+
+  double l3 = sqrt(detA3 * detA3 + detB3 * detB3 + detC3 * detC3);
+
+  double a = 0;
+  double b = 0;
+  double c = 0;
+  if (l1 >= l2 && l1 >= l3){
+    a = detA1 / l1;
+    b = detB1 / l1;
+    c = detC1 / l1;
+  } else if (l2 >= l1 && l2 >= l3){
+    a = detA2 / l2;
+    b = detB2 / l2;
+    c = detC2 / l2;
+  } else if (l3 >= l1 && l3 >= l2){
+    a = detA3 / l3;
+    b = detB3 / l3;
+    c = detC3 / l3;
+  }
+  double d = -(a * sumX + b * sumY + c * sumZ) / n;
+
+  std::vector<double> eq_coefs{a, b, c, d};
+
+  return eq_coefs;
+}
+
+
+
+// finds coefficients of the plane equation which approximates several points (N > 3)
+// https://medium.com/swlh/how-to-find-the-least-squares-plane-from-a-cloud-of-point-using-excel-numbers-etc-92b66f852522
+
+std::vector<double> get_plane_coefs2(std::vector<double> & xx,
+                                    std::vector<double> & yy,
+                                    std::vector<double> & zz){
+  try{
+    if (xx.size() != yy.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  try{
+    if (xx.size() != zz.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = xx.size();
+
+  double sumX = 0;
+  double sumY = 0;
+  double sumZ = 0;
+  double sumX2 = 0;
+  double sumY2 = 0;
+  double sumXY = 0;
+  double sumYZ = 0;
+  double sumZX = 0;
+  for (int i; i < n; ++i){
+    sumX += xx[i];
+    sumY += yy[i];
+    sumZ += zz[i];
+    sumX2 += (xx[i] * xx[i]);
+    sumY2 += (yy[i] * yy[i]);
+    sumXY += (xx[i] * yy[i]);
+    sumYZ += (yy[i] * zz[i]);
+    sumZX += (zz[i] * xx[i]);
+  }
+
+  double detA = get_33_determinant(sumX2, sumXY, sumX,
+                                   sumXY, sumY2, sumY,
+                                    sumX,  sumY,  n);
+  if (detA != 0){
+    detA = 1 / detA;
+    // finding minor matrix
+    double m11 = get_22_determinant(sumY2, sumY, sumY, n);
+    double m12 = get_22_determinant(sumXY, sumY, sumX, n);
+    double m13 = get_22_determinant(sumXY, sumY2, sumX, sumY);
+    double m21 = get_22_determinant(sumXY, sumX, sumY, n);
+    double m22 = get_22_determinant(sumX2, sumX, sumX, n);
+    double m23 = get_22_determinant(sumX2, sumXY, sumX, sumY);
+    double m31 = get_22_determinant(sumXY, sumX, sumY2, sumY);
+    double m32 = get_22_determinant(sumX2, sumX, sumXY, sumY);
+    double m33 = get_22_determinant(sumX2, sumXY, sumXY, sumY2);
+    // finding adjugate matrix
+    m12 = -m12;
+    m21 = -m21;
+    m23 = -m23;
+    m32 = -m32;
+    // finding transposed adjugate matrix
+    double temp_station;
+    temp_station = m12;
+    m12 = m21;
+    m21 = temp_station;
+    temp_station = m13;
+    m13 = m31;
+    m31 = temp_station;
+    temp_station = m23;
+    m23 = m32;
+    m32 = temp_station;
+    // final inverted matrix
+    m11 = m11 * detA;
+    m12 = m12 * detA;
+    m13 = m13 * detA;
+    m21 = m21 * detA;
+    m22 = m22 * detA;
+    m23 = m23 * detA;
+    m31 = m31 * detA;
+    m32 = m32 * detA;
+    m33 = m33 * detA;
+    // coefs
+    double a = m11 * sumZX + m12 * sumYZ + m13 * sumZ;
+    double b = m21 * sumZX + m22 * sumYZ + m23 * sumZ;
+    double c = m31 * sumZX + m32 * sumYZ + m33 * sumZ;
+    double d = -(a * sumX + b * sumY + c * sumZ) / n;
+
+    std::vector<double> eq_coefs{a, b, c, d};
+    return eq_coefs;
+
+  } else {
+    std::vector<double> eq_coefs{0, 0, 0, 0};
+    return eq_coefs;
+  }
+}
+
+
+// angle between plane and horizontal plane
+double get_slope(double aa, double bb, double cc){
+  double cosA = abs(cc) / sqrt(aa * aa + bb * bb + cc * cc);
+  double angle = std::acos(cosA);
+  return angle;
 }
 
 
@@ -1030,9 +1248,10 @@ std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::str
       }
     }
 
-
+    std::vector<double> plane_eq_coefs = get_plane_coefs2(px1, py1, vert_avg);
+    plane_eq_coefs.push_back(get_slope(plane_eq_coefs[0], plane_eq_coefs[1], plane_eq_coefs[2]));
   // тестовая выгрузка!
-    geotab[this_ind] = py1;
+    geotab[this_ind] = plane_eq_coefs;
 
   }
   return geotab;
