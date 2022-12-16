@@ -371,6 +371,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// resample_up
+std::map <std::string, double> resample_up(const std::string func, const std::vector<std::string>& children_ind, const std::vector<double>& children_vals);
+RcppExport SEXP _h3_resample_up(SEXP funcSEXP, SEXP children_indSEXP, SEXP children_valsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string >::type func(funcSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type children_ind(children_indSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type children_vals(children_valsSEXP);
+    rcpp_result_gen = Rcpp::wrap(resample_up(func, children_ind, children_vals));
+    return rcpp_result_gen;
+END_RCPP
+}
 // simple_sum
 std::map <std::string, double> simple_sum(std::vector<std::string>& ind1, std::vector<double>& z1, std::vector<std::string>& ind2, std::vector<double>& z2);
 RcppExport SEXP _h3_simple_sum(SEXP ind1SEXP, SEXP z1SEXP, SEXP ind2SEXP, SEXP z2SEXP) {
@@ -475,6 +488,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// drainage
+std::map <std::string, std::string> drainage(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_drainage(SEXP indsSEXP, SEXP zSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    rcpp_result_gen = Rcpp::wrap(drainage(inds, z));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -508,6 +533,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_points_to_H3", (DL_FUNC) &_h3_points_to_H3, 3},
     {"_h3_hex_centers_inbbox", (DL_FUNC) &_h3_hex_centers_inbbox, 3},
     {"_h3_resample_down", (DL_FUNC) &_h3_resample_down, 3},
+    {"_h3_resample_up", (DL_FUNC) &_h3_resample_up, 3},
     {"_h3_simple_sum", (DL_FUNC) &_h3_simple_sum, 4},
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
     {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
@@ -516,6 +542,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_indexes_to_coords", (DL_FUNC) &_h3_indexes_to_coords, 1},
     {"_h3_cell_azimuth", (DL_FUNC) &_h3_cell_azimuth, 1},
     {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
+    {"_h3_drainage", (DL_FUNC) &_h3_drainage, 2},
     {NULL, NULL, 0}
 };
 

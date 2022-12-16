@@ -176,6 +176,10 @@ resample_down <- function(level_to, parent_ind, parent_vals) {
     .Call(`_h3_resample_down`, level_to, parent_ind, parent_vals)
 }
 
+resample_up <- function(func, children_ind, children_vals) {
+    .Call(`_h3_resample_up`, func, children_ind, children_vals)
+}
+
 simple_sum <- function(ind1, z1, ind2, z2) {
     .Call(`_h3_simple_sum`, ind1, z1, ind2, z2)
 }
@@ -206,5 +210,9 @@ cell_azimuth <- function(h3_index) {
 
 gradient_aspect <- function(inds, z, stat_type) {
     .Call(`_h3_gradient_aspect`, inds, z, stat_type)
+}
+
+drainage <- function(inds, z) {
+    .Call(`_h3_drainage`, inds, z)
 }
 

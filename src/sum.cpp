@@ -338,7 +338,7 @@ double vector_average(std::vector<double> & v){
   return acc / n;
 }
 
-
+// добавить присвоение центрального, если все разные
 double most_frequent_element(std::vector<double> &arr)
   {
     if (arr.empty())
@@ -679,7 +679,7 @@ std::vector<double> get_plane_coefs2(std::vector<double> & xx,
 // angle between plane and horizontal plane
 double get_slope(double aa, double bb, double cc){
   double cosA = abs(cc) / sqrt(aa * aa + bb * bb + cc * cc);
-  double angle = std::acos(cosA);
+  double angle = std::acos(cosA) * 180.0 / 3.14159265358979323846;
   return angle;
 }
 
@@ -823,6 +823,85 @@ std::map <std::string, double> resample_down(const int & level_to,
 }
 
 
+// given children H3 indexes and corresponding values defines
+// list of parents in the closest level and aggregates values
+
+// [[Rcpp::export]]
+std::map <std::string, double> resample_up(const std::string func,
+                                           const std::vector<std::string> & children_ind,
+                                           const std::vector<double> & children_vals){
+  int level_from = h3GetResolution(stringToH3(children_ind[0].std::string::c_str()));
+
+  try{
+    if (children_ind.size() != children_vals.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal lengths exception - unpredictable result" << std::endl;
+  }
+  std::map <std::string, double> parentab;
+  if (level_from > 0){
+    // parents of every child
+    std::vector<std::string> chp;
+    // loop through children string indexes
+    for (int i = 0; i < children_ind.size(); i++) {
+      H3Index h3 = stringToH3(children_ind[i].std::string::c_str());
+      H3Index h3Parent = h3ToParent(h3, level_from - 1);
+      char h3ParentStr[17];
+      h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
+      chp.push_back(h3ParentStr);
+      }
+
+    std::set<std::string> prnts(chp.begin(),
+                                chp.end());
+    // loop through unique parent string indexes
+    for (std::string pind : prnts) {
+      H3Index h3 = stringToH3(pind.std::string::c_str());
+      int n = maxH3ToChildrenSize(h3, level_from);  // define maximum number of the hex's children
+      H3Index* h3Children = new H3Index[n];  // vector for children
+      h3ToChildren(h3, level_from, h3Children); // children list in H3 format
+      // list of children of every parent
+      std::vector<std::string> children_list;
+      for (int j = 0; j < n; ++j) {
+        char h3Str[17];
+        h3ToString(h3Children[j], h3Str, sizeof(h3Str));
+        children_list.push_back(h3Str);
+      }
+      delete[] h3Children;
+      // list of children;s values of every parent
+      std::vector<double> children_list_vals;
+      for (std::string chind : children_list) {
+        for (int k = 0; k < children_ind.size(); ++k) {
+          if (chind == children_ind[k]){
+            children_list_vals.push_back(children_vals[k]);
+          }
+        }
+      }
+      // result value of aggregation
+      double w_result = 0.0;
+      if (func == "max"){
+        w_result = *max_element(std::begin(children_list_vals),
+                                std::end(children_list_vals));
+      } else if (func == "avg"){
+        w_result = vector_average(children_list_vals);
+      } else if (func == "sum"){
+        for (auto val : children_list_vals){
+          if (!std::isnan(val)){
+            w_result += val;
+          }}
+      } else if (func == "majority"){
+        w_result = most_frequent_element(children_list_vals);
+      } else {
+        w_result = -0.0;
+      }
+      // write the result into parent hexs
+      parentab[pind] = w_result;
+    }
+  }
+  return parentab;
+}
+
+
 // calculates sum of values in equal H3 cells of two rasters
 // (vectors with indexes and values); resamples one raster if
 // they have different levels
@@ -904,8 +983,9 @@ double global_extremum(std::vector<std::string> & ind,
 }
 
 
-// Calculates sum, mean, min, or max of values in H3 cells of the
-// second raster which corresponds to H3 cells in the first
+// Calculates sum, mean, min, max, majority or minority
+// of values in H3 cells of the second raster
+// which corresponds to H3 cells in the first
 // raster's zones, i.e. cells that share the same value;
 // resamples one raster if they have different levels
 
@@ -1190,7 +1270,6 @@ std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::str
     std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
   int n = inds.size();
-  std::map <std::string, double> result;
 
   for (int i = 0; i < n; i++){
     std::string this_ind = inds[i]; // current cell
@@ -1252,6 +1331,45 @@ std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::str
     plane_eq_coefs.push_back(get_slope(plane_eq_coefs[0], plane_eq_coefs[1], plane_eq_coefs[2]));
   // тестовая выгрузка!
     geotab[this_ind] = plane_eq_coefs;
+
+  }
+  return geotab;
+}
+
+
+
+// Calculates drainage in focal window
+
+// [[Rcpp::export]]
+std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
+                                             std::vector<double> & z){
+  std::map <std::string, std::string> geotab;
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = inds.size();
+
+  for (int i = 0; i < n; i++){
+    std::string this_ind = inds[i]; // current cell
+    std::vector<std::string> this_vecinity = cell_vecinity(this_ind, 1); // current cell immediate neighbors
+    // get values in focal window
+    // assume that order in this_vecinity = in initial_vals
+    std::string desc_slope_hex = this_ind;  // h3 index of the cell with descent slope
+    double desc_slope_val = 0;  // h difference with the cell with descent slope
+    for (auto const & vec_ind : this_vecinity){
+      for (int j = 0; j < n; j++){
+        if (inds[j] == vec_ind && vec_ind != this_ind && ((z[i] - z[j]) > desc_slope_val)){
+          desc_slope_val = z[i] - z[j];
+          desc_slope_hex = vec_ind;
+        }
+      }
+    }
+    geotab[this_ind] = desc_slope_hex;
 
   }
   return geotab;
