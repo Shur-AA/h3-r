@@ -209,3 +209,29 @@ h3_indexes_to_coords <- function(inds) {
 h3_cell_azimuth <- function(h3_index) {
   cell_azimuth(h3_index)
 }
+
+
+#' Returns table of input indexes and corresponding parent indexes
+#'
+#' @param children_ind vector of indexes
+#'
+#' @return table of indexes' pairs
+#'
+#' @export
+h3_get_direct_parents <- function(children_ind) {
+  get_direct_parents(children_ind)
+}
+
+
+#' Returns table of input indexes and corresponding parent indexes
+#'
+#' @param func aggregation function (sum, max, avg, majority)
+#' @param children_ind vector of indexes
+#' @param children_vals vector of values in the indexes
+#'
+#' @return map of parents' H3 indexes and corresponding z-values
+#'
+#' @export
+h3_resample_up <- function(func, children_ind, children_vals) {
+  get_direct_parents(func, children_ind, children_vals)
+}

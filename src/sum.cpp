@@ -823,6 +823,28 @@ std::map <std::string, double> resample_down(const int & level_to,
 }
 
 
+// given children H3 indexes returns
+// list of parents in the closest level
+
+// [[Rcpp::export]]
+std::map <std::string, std::string> get_direct_parents(const std::vector<std::string> & children_ind){
+  int level_from = h3GetResolution(stringToH3(children_ind[0].std::string::c_str()));
+  // parents of every child
+  std::map <std::string, std::string> chp;
+  if (level_from > 0){
+    // loop through children string indexes
+    for (int i = 0; i < children_ind.size(); i++) {
+      H3Index h3 = stringToH3(children_ind[i].std::string::c_str());
+      H3Index h3Parent = h3ToParent(h3, level_from - 1);
+      char h3ParentStr[17];
+      h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
+      chp[children_ind[i]] = h3ParentStr;
+    }
+  }
+  return chp;
+}
+
+
 // given children H3 indexes and corresponding values defines
 // list of parents in the closest level and aggregates values
 

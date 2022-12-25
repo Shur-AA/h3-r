@@ -371,6 +371,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// get_direct_parents
+std::map <std::string, std::string> get_direct_parents(const std::vector<std::string>& children_ind);
+RcppExport SEXP _h3_get_direct_parents(SEXP children_indSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type children_ind(children_indSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_direct_parents(children_ind));
+    return rcpp_result_gen;
+END_RCPP
+}
 // resample_up
 std::map <std::string, double> resample_up(const std::string func, const std::vector<std::string>& children_ind, const std::vector<double>& children_vals);
 RcppExport SEXP _h3_resample_up(SEXP funcSEXP, SEXP children_indSEXP, SEXP children_valsSEXP) {
@@ -533,6 +544,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_points_to_H3", (DL_FUNC) &_h3_points_to_H3, 3},
     {"_h3_hex_centers_inbbox", (DL_FUNC) &_h3_hex_centers_inbbox, 3},
     {"_h3_resample_down", (DL_FUNC) &_h3_resample_down, 3},
+    {"_h3_get_direct_parents", (DL_FUNC) &_h3_get_direct_parents, 1},
     {"_h3_resample_up", (DL_FUNC) &_h3_resample_up, 3},
     {"_h3_simple_sum", (DL_FUNC) &_h3_simple_sum, 4},
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},

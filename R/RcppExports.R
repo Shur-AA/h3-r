@@ -176,6 +176,10 @@ resample_down <- function(level_to, parent_ind, parent_vals) {
     .Call(`_h3_resample_down`, level_to, parent_ind, parent_vals)
 }
 
+get_direct_parents <- function(children_ind) {
+    .Call(`_h3_get_direct_parents`, children_ind)
+}
+
 resample_up <- function(func, children_ind, children_vals) {
     .Call(`_h3_resample_up`, func, children_ind, children_vals)
 }

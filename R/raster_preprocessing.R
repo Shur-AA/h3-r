@@ -65,6 +65,20 @@ bilinear_interpolation = function(raster_obj, hex_tab){
   return(hex_values)
 }
 
+nn_interpolation = function(raster_obj, hex_tab){
+  hex_pnts = st_as_sf(hex_tab,
+                      coords = c("lon_hex", "lat_hex"),
+                      crs = 4326)
+  hex_values = st_extract(raster_obj,
+                          hex_pnts,
+                          bilinear = FALSE) %>%
+    st_drop_geometry() %>%
+    mutate(lon_hex = hex_tab$lon_hex) %>%
+    mutate(lat_hex = hex_tab$lat_hex)
+  colnames(hex_values) = c('z', 'x', 'y')
+  return(hex_values)
+}
+
 raster_to_hex = function(rast_obj, h3_level, intrp_method = 'bilinear'){
   rast_pnts = raster_to_points(rast_obj)
   rast_extent = raster_to_bbox(rast_obj)
@@ -80,6 +94,8 @@ raster_to_hex = function(rast_obj, h3_level, intrp_method = 'bilinear'){
     new = linear_interpolation(rast_pnts,  hex_centers)
   } else if (intrp_method == 'bilinear'){
     new = bilinear_interpolation(rast_obj,  hex_centers)
+  } else if (intrp_method == 'nn'){  # nearest neighbour
+    new = nn_interpolation(rast_obj,  hex_centers)
   }
   new$h3_ind = hex_centers$ind
   return(new)

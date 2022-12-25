@@ -5,6 +5,7 @@ library(sp)
 library(tidyverse)
 library(akima)
 library(tidyr)
+library(infotheo)
 
 
 options(scipen=999)
@@ -39,6 +40,118 @@ choose_h3_level = function(raster_cell_area){
   return(h3_cells_info[idx, 1])
 }
 
+entropy = function(intab, val_col){
+  intab = intab %>% filter(!is.na(intab[,val_col]))
+  cells_count = length(intab[,val_col])
+  entr = intab %>% group_by(intab[,val_col]) %>%
+          summarise(val_cnt = n()) %>%
+          mutate(pij = val_cnt / (cells_count * 1.0)) %>%
+          mutate(log2pij = log2(pij)) %>%
+          mutate(pijlog2pij = pij * log2pij)
+  entr = sum(entr$pijlog2pij)
+  return(-entr)
+}
+
+
+# calculates Kullback–Leibler divergence between two vectors of variables
+# note that v1 is reality and v2 is a model
+KL_divergence = function(v1, v2){
+  v1 = v1[!is.na(v1)] %>% as.data.frame()
+  v2 = v2[!is.na(v2)] %>% as.data.frame()
+  colnames(v1) = c('val')
+  colnames(v2) = c('val')
+  v1_count = length(v1$val)
+  v2_count = length(v2$val)
+  v1p = v1 %>% group_by(val) %>%
+    summarise(val_cnt = n()) %>%
+    mutate(pij = val_cnt / (v1_count * 1.0))
+  v2p = v2 %>% group_by(val) %>%
+    summarise(val_cnt = n()) %>%
+    mutate(pij = val_cnt / (v2_count * 1.0))
+  vp = full_join(v1p, v2p, by='val')
+  vp[is.na(vp)] = -1
+  vp = vp %>% mutate(kl = pij.x * log2(pij.x / pij.y))
+  return(vp)
+  #return(sum(filter(vp, !is.nan(vp$kl))$kl))
+}
+
+
+# mutual information in 3 notation
+# https://jinjeon.me/post/mutual-info/
+# https://medium.com/swlh/a-deep-conceptual-guide-to-mutual-information-a5021031fad0
+# (X - reality, Y - model)
+# tables must have columns 'h3_ind' and 'z'
+mut_inf = function(t1, t2){
+  hy = entropy(as.data.frame(t2$z), 1)
+  hx = entropy(as.data.frame(t1$z), 1)
+  t1 = t1 %>% filter(!is.na(t1$z))
+  t2 = t2 %>% filter(!is.na(t2$z))
+  # t1 indexes and their parents
+  t1p = h3_get_direct_parents(t1$h3_ind) %>% as.data.frame()
+  t1p = mutate(t1p, h3_chld = rownames(t1p))
+  rownames(t1p) = seq(1, length(t1p$h3_chld), 1)
+  colnames(t1p) = c('h3_prnt', 'h3_chld')
+  # empirical joint distribution
+  join_distr = full_join(t1, t1p, by=c("h3_ind" = "h3_chld")) %>%
+               full_join(t2, by=c("h3_prnt" = "h3_ind")) %>%
+               filter(!is.na(`z.x`)) %>%
+               filter(!is.na(`z.y`)) %>%
+               select(`z.x`, `z.y`)
+
+  join_distr = join_distr %>%
+              group_by(`z.x`, `z.y`) %>%
+              summarise(pair_cnt = n())
+  s = sum(join_distr$pair_cnt)
+  join_distr = join_distr %>%
+               mutate(pair_p = pair_cnt / s)
+
+  # theoretical joint distribution
+  t1_count = length(t1$z)
+  t2_count = length(t2$z)
+  px = t1 %>% group_by(z) %>%
+    summarise(val_cnt = n()) %>%
+    mutate(pij = val_cnt / (t1_count * 1.0))
+  py = t2 %>% group_by(z) %>%
+    summarise(val_cnt = n()) %>%
+    mutate(pij = val_cnt / (t2_count * 1.0))
+  vp = full_join(px, py, by='z')
+  vp[is.na(vp)] = 0
+
+  a = select(vp, z, pij.x)
+  b = select(vp, z, pij.y) %>%
+      filter(pij.y > 0)
+  c = crossing(a$z, b$z)
+  colnames(c) = c('xval', 'yval')
+  c = left_join(c, a, by=c('xval' = 'z')) %>%
+      left_join(b, by=c('yval' = 'z')) %>%
+      mutate(pxy = pij.x * pij.y)
+
+  # table with joints and marginal distribution
+  distributions = left_join(join_distr, vp, by=c('z.x' = 'z'))
+  for_hxy = filter(distributions, pij.y > 0)
+
+  # empirical conditional entropy H(Y|X)
+  hyx_emp = -sum(distributions$pair_p * log2(distributions$pair_p / distributions$pij.x))
+
+  # theoretical conditional entropy H(Y|X)
+  hyx_teor = -sum(c$pxy * log2(c$pxy / c$pij.x))
+
+  # I(X,Y) = H(Y) - H(Y|X)
+  MIemp = hy - hyx_emp
+  MIteor = hy - hyx_teor
+  # I(X,Y) = H(X) + H(Y) - H(X,Y)
+  MI2 = sum(distributions$pair_p * log2(distributions$pair_p)) + hx + hy
+  # I(X,Y) = sum[P(X,Y) * log2(P(X,Y) / P(X)*P(Y))]
+  MI3 = sum(for_hxy$pair_p * log2(for_hxy$pair_p / (for_hxy$pij.x * for_hxy$pij.y)))
+
+  mi = data.frame(MI1_emp = c(MIemp),
+                  MI1_theor = c(MIteor),
+                  MI2 = c(MI2),
+                  MI3 = c(MI3))
+
+  return(c)
+}
+
 
 
 rpath1 = "./test_samples/ufa_igbp.tif"
@@ -48,11 +161,33 @@ rast1 = read_stars(rpath1) # input 1-band raster file 1
 #rast2 = read_stars(rpath2) # input 1-band raster file 2
 
 
-tab1 = h3_raster_to_hex(rast1, choose_h3_level(get_rast_cellarea(rast1)))
+tab1 = h3_raster_to_hex(rast1, choose_h3_level(get_rast_cellarea(rast1)), 'nn')
+tab1$z = as.integer(tab1$z)
 tab2 = h3:::resample_up("majority", tab1$h3_ind,
                               as.integer(tab1$z))%>%
-                                               as.data.frame()
-tab22 = h3_raster_to_hex(rast1, choose_h3_level(get_rast_cellarea(rast1))-1)
+                              as.data.frame()
+tab2 = mutate(tab2, h3_ind = rownames(tab2)) %>%
+        filter(. > 0)
+rownames(tab2) = seq(1, length(tab2$h3_ind), 1)
+colnames(tab2) = c('z', 'h3_ind')
+tab3 = h3:::resample_up("majority", tab2$h3_ind,
+                        as.integer(tab2$z))%>%
+                        as.data.frame()
+tab3 = mutate(tab3, h3_ind = rownames(tab3))
+rownames(tab3) = seq(1, length(tab3$h3_ind), 1)
+colnames(tab3) = c('z', 'h3_ind')
+tab4 = h3:::resample_up("majority", tab3$h3_ind,
+                        as.integer(tab3$z))%>%
+                        as.data.frame()
+tab4 = mutate(tab4, h3_ind = rownames(tab4))
+rownames(tab4) = seq(1, length(tab4$h3_ind), 1)
+colnames(tab4) = c('z', 'h3_ind')
+tab22 = h3_raster_to_hex(rast1,
+                         choose_h3_level(get_rast_cellarea(rast1))-1, 'nn')
+tab22$z = as.integer(tab22$z)
+
+
+
 
 
 
