@@ -233,5 +233,21 @@ h3_get_direct_parents <- function(children_ind) {
 #'
 #' @export
 h3_resample_up <- function(func, children_ind, children_vals) {
-  get_direct_parents(func, children_ind, children_vals)
+  resample_up(func, children_ind, children_vals)
+}
+
+
+#' Returns table of input indexes and corresponding parent indexes
+#' of any coarser level
+#'
+#' @param func aggregation function (sum, max, avg, majority)
+#' @param level_to aim level
+#' @param children_ind vector of indexes
+#' @param children_vals vector of values in the indexes
+#'
+#' @return map of parents' H3 indexes and corresponding z-values
+#'
+#' @export
+h3_resample_up_any <- function(func, level_to, children_ind, children_vals) {
+  resample_up_any(func, level_to, children_ind, children_vals)
 }

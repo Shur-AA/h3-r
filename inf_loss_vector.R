@@ -43,10 +43,10 @@ entropy = function(intab, val_col){
   intab = intab %>% filter(!is.na(intab[,val_col]))
   cells_count = length(intab[,val_col])
   entr = intab %>% group_by(intab[,val_col]) %>%
-          summarise(val_cnt = n()) %>%
-          mutate(pij = val_cnt / (cells_count * 1.0)) %>%
-          mutate(log2pij = log2(pij)) %>%
-          mutate(pijlog2pij = pij * log2pij)
+    summarise(val_cnt = n()) %>%
+    mutate(pij = val_cnt / (cells_count * 1.0)) %>%
+    mutate(log2pij = log2(pij)) %>%
+    mutate(pijlog2pij = pij * log2pij)
   entr = sum(entr$pijlog2pij)
   return(-entr)
 }
@@ -91,17 +91,17 @@ mut_inf = function(t1, t2){
   colnames(t1p) = c('h3_prnt', 'h3_chld')
   # empirical joint distribution
   join_distr = full_join(t1, t1p, by=c("h3_ind" = "h3_chld")) %>%
-               full_join(t2, by=c("h3_prnt" = "h3_ind")) %>%
-               filter(!is.na(`z.x`)) %>%
-               filter(!is.na(`z.y`)) %>%
-               select(`z.x`, `z.y`)
+    full_join(t2, by=c("h3_prnt" = "h3_ind")) %>%
+    filter(!is.na(`z.x`)) %>%
+    filter(!is.na(`z.y`)) %>%
+    select(`z.x`, `z.y`)
 
   join_distr = join_distr %>%
-              group_by(`z.x`, `z.y`) %>%
-              summarise(pair_cnt = n())
+    group_by(`z.x`, `z.y`) %>%
+    summarise(pair_cnt = n())
   s = sum(join_distr$pair_cnt)
   join_distr = join_distr %>%
-               mutate(pair_p = pair_cnt / s)
+    mutate(pair_p = pair_cnt / s)
 
   # theoretical joint distribution
   t1_count = length(t1$z)
@@ -117,12 +117,12 @@ mut_inf = function(t1, t2){
 
   a = select(vp, z, pij.x)
   b = select(vp, z, pij.y) %>%
-      filter(pij.y > 0)
+    filter(pij.y > 0)
   c = crossing(a$z, b$z)
   colnames(c) = c('xval', 'yval')
   c = left_join(c, a, by=c('xval' = 'z')) %>%
-      left_join(b, by=c('yval' = 'z')) %>%
-      mutate(pxy = pij.x * pij.y)
+    left_join(b, by=c('yval' = 'z')) %>%
+    mutate(pxy = pij.x * pij.y)
 
   # table with joints and marginal distribution
   distributions = left_join(join_distr, vp, by=c('z.x' = 'z'))
@@ -170,78 +170,44 @@ spectr_dev = function(t1, t2){
 }
 
 
-
+result = data.frame(territory = c("city"),
+                    start_h3_level = c(99),
+                    h3_level_n = c(99),
+                    gen_method = c('start'),
+                    aggr_method = c('nn'),
+                    legend_variety = c(0),
+                    entropy = c(0),
+                    mi1 = c(0),
+                    mi2 = c(0),
+                    mi3 = c(0),
+                    kl_div = c(0),
+                    spectr_dev = c(0))
 
 # КАРУСЕЛЬ
 #
-# папка с папками lclu
-dir = 'D:/1_Аспа/Information loss/hres_crop'
-products = list.dirs(dir)
-
-# составляем список уникальных названий городов в папках,
-# чтобы потом обращаться именно к городам
-citytifs = c()
-foldernames = c()
-for (product in 2:length(products)){
-  p = strsplit(products[product],split='/', fixed=TRUE)
-  p = p[[1]][length(p[[1]])] # название продукта
-  foldernames = append(foldernames, p, after = length(foldernames))
-  start_symb = nchar(p) + 2
-  tifs_infolder = list.files(products[product], pattern = '*.tif$')
-  for (tif in tifs_infolder){
-    end_symb = nchar(tif) - 4
-    cityname = substr(tif, start_symb, end_symb)
-    if (cityname %in% citytifs == F){
-      citytifs = append(citytifs, cityname, after = length(citytifs))
-    }
-  }
-}
-
-result = data.frame(territory = c("city"),
-                     rast_prod = c("territory"),
-                     start_res = c(99),
-                     start_h3_level = c(99),
-                     h3_level_n = c(99),
-                      gen_method = c('start'),
-                      aggr_method = c('nn'),
-                      legend_variety = c(0),
-                      entropy = c(0),
-                      mi1 = c(0),
-                      mi2 = c(0),
-                      mi3 = c(0),
-                      kl_div = c(0),
-                      spectr_dev = c(0))
+# папка с шейпами по населению в городах
+dir = 'D:/1_Аспа/Information loss/Population15'
+city_shps = list.files(dir, pattern = '*.shp$')
+# сколько уровней будем проходить; 4 - самый высокий уровень, эксп. мнение
+levels_seq = seq(8, 5, -1)
 
 # ходим по городам
-for (city in citytifs){
-  print(city)
-  current_city_paths = c()
-  for (folder in foldernames){
-    path_to_city = paste(dir, '/', folder, '/', folder, '_', city, '.tif', sep='')
-    current_city_paths = append(current_city_paths,
-                                path_to_city,
-                                after = length(current_city_paths))
-  }
-  ccp_length = length(current_city_paths)
-  for (raster_num in 1:ccp_length){
-    print(current_city_paths[raster_num])
-    rast1 = read_stars(current_city_paths[raster_num]) # input 1-band raster file
-    # information for table and parameters
-    initial_resolution = get_rast_cellarea(rast1)
-    start_h3_l = choose_h3_level(initial_resolution)
-    w = strsplit(current_city_paths[raster_num], split='/')
-    territory = substr(w[[1]][length(w[[1]])], 1, nchar(w[[1]][length(w[[1]])]) - 4)
-    # сколько уровней будем проходить; 4 - самый высокий уровень, эксп. мнение
-    levels_seq = seq(start_h3_l, 7, -1)
-
-    start_tab = h3_raster_to_hex(rast1, start_h3_l, 'nn')
+for (file in city_shps){
+    territory = substr(file, 1, nchar(file) - 4)
+    start_h3_l = 8
+    path_to_file = paste(dir, '/', file, sep='')
+    print(territory)
+    start_tab = read_sf(dsn = path_to_file) %>%
+                st_drop_geometry() %>%
+                select(-fid)
+    colnames(start_tab) = c('h3_ind', 'z')
+    start_tab = select(start_tab, z, h3_ind)
     start_tab$z = as.integer(start_tab$z)
-    print('transition done')
+    start_tab = as.data.frame(start_tab)
+
     p01 = entropy(start_tab, 1)
     p00 = length(unique(start_tab$z))
-    this_result = data.frame(territory = c(city),
-                             rast_prod = c(territory),
-                             start_res = c(initial_resolution),
+    this_result = data.frame(territory = c(territory),
                              start_h3_level = c(start_h3_l),
                              h3_level_n = c(start_h3_l),
                              gen_method = c('start'),
@@ -253,11 +219,10 @@ for (city in citytifs){
                              mi3 = c(0),
                              kl_div = c(0),
                              spectr_dev = c(0)
-                              )
+    )
     result = rbind(result, this_result)
 
     for (level in levels_seq){
-      print(level)
       if (level == start_h3_l){
         coarse_tab = start_tab
         coarse_tab_indep = start_tab
@@ -267,19 +232,27 @@ for (city in citytifs){
       }
 
       # parent resolution via aggregation
-      finer_tab_inh = h3_resample_up("majority",
+      finer_tab_inh = h3_resample_up("sum",
                                      coarse_tab$h3_ind,
                                      coarse_tab$z) %>%
-                        as.data.frame()
+                                      as.data.frame()
       finer_tab_inh = mutate(finer_tab_inh,
                              h3_ind = rownames(finer_tab_inh)) %>%
-                             filter(. > 0)
+                            filter(. > 0)
       rownames(finer_tab_inh) = seq(1, length(finer_tab_inh$h3_ind), 1)
       colnames(finer_tab_inh) = c('z', 'h3_ind')
 
-      # parent resolution via resampling start raster
-      finer_tab_indep = h3_raster_to_hex(rast1, level - 1, 'nn')
-      finer_tab_indep$z = as.integer(finer_tab_indep$z)
+      # parent resolution via resampling start data
+      finer_tab_indep = h3_resample_up_any("sum",
+                                           level - 1,
+                                           coarse_tab_indep$h3_ind,
+                                           coarse_tab_indep$z) %>%
+                                          as.data.frame()
+      finer_tab_indep = mutate(finer_tab_indep,
+                             h3_ind = rownames(finer_tab_indep)) %>%
+                              filter(. > 0)
+      rownames(finer_tab_indep) = seq(1, length(finer_tab_indep$h3_ind), 1)
+      colnames(finer_tab_indep) = c('z', 'h3_ind')
 
       # 1 - finer_inh, 2 - finer_indep;
       # 0 - variety, 1 - entropy, 2 - mi1, 3 - mi2, 4 - mi3, 5 - KL, 6 - spectr_dev
@@ -300,13 +273,11 @@ for (city in citytifs){
       p16 = spectr_dev(coarse_tab, finer_tab_inh)
       p26 = spectr_dev(coarse_tab_indep, finer_tab_indep)
 
-      this_result = data.frame(territory = c(city),
-                               rast_prod = c(territory),
-                               start_res = c(initial_resolution),
+      this_result = data.frame(territory = c(territory),
                                start_h3_level = c(start_h3_l),
                                h3_level_n = c(level - 1),
                                gen_method = c('inheritance'),
-                               aggr_method = c('majority'),
+                               aggr_method = c('sum'),
                                legend_variety = c(p10),
                                entropy = c(p11),
                                mi1 = c(p12),
@@ -314,11 +285,9 @@ for (city in citytifs){
                                mi3 = c(p14),
                                kl_div = c(p15),
                                spectr_dev = c(p16)
-                               )
+      )
       result = rbind(result, this_result)
-      this_result = data.frame(territory = c(city),
-                               rast_prod = c(territory),
-                               start_res = c(initial_resolution),
+      this_result = data.frame(territory = c(territory),
                                start_h3_level = c(start_h3_l),
                                h3_level_n = c(level - 1),
                                gen_method = c('independant'),
@@ -330,11 +299,10 @@ for (city in citytifs){
                                mi3 = c(p24),
                                kl_div = c(p25),
                                spectr_dev = c(p26)
-                                )
+      )
       result = rbind(result, this_result)
     }
-  }
-  }
+}
 
 
 

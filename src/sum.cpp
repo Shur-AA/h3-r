@@ -924,6 +924,86 @@ std::map <std::string, double> resample_up(const std::string func,
 }
 
 
+// given children H3 indexes and corresponding values defines
+// list of parents in any coarser level and aggregates values
+// this function is overloading
+
+// [[Rcpp::export]]
+std::map <std::string, double> resample_up_any(const std::string func,
+                                           const int level_to,
+                                           const std::vector<std::string> & children_ind,
+                                           const std::vector<double> & children_vals){
+  int level_from = h3GetResolution(stringToH3(children_ind[0].std::string::c_str()));
+
+  try{
+    if (children_ind.size() != children_vals.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal lengths exception - unpredictable result" << std::endl;
+  }
+  std::map <std::string, double> parentab;
+  if (level_from > 0 && level_from > level_to){
+    // parents of every child
+    std::vector<std::string> chp;
+    // loop through children string indexes
+    for (int i = 0; i < children_ind.size(); i++) {
+      H3Index h3 = stringToH3(children_ind[i].std::string::c_str());
+      H3Index h3Parent = h3ToParent(h3, level_to);
+      char h3ParentStr[17];
+      h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
+      chp.push_back(h3ParentStr);
+    }
+
+    std::set<std::string> prnts(chp.begin(),
+                                chp.end());
+    // loop through unique parent string indexes
+    for (std::string pind : prnts) {
+      H3Index h3 = stringToH3(pind.std::string::c_str());
+      int n = maxH3ToChildrenSize(h3, level_from);  // define maximum number of the hex's children
+      H3Index* h3Children = new H3Index[n];  // vector for children
+      h3ToChildren(h3, level_from, h3Children); // children list in H3 format
+      // list of children of every parent
+      std::vector<std::string> children_list;
+      for (int j = 0; j < n; ++j) {
+        char h3Str[17];
+        h3ToString(h3Children[j], h3Str, sizeof(h3Str));
+        children_list.push_back(h3Str);
+      }
+      delete[] h3Children;
+      // list of children's values of every parent
+      std::vector<double> children_list_vals;
+      for (std::string chind : children_list) {
+        for (int k = 0; k < children_ind.size(); ++k) {
+          if (chind == children_ind[k]){
+            children_list_vals.push_back(children_vals[k]);
+          }
+        }
+      }
+      // result value of aggregation
+      double w_result = 0.0;
+      if (func == "max"){
+        w_result = *max_element(std::begin(children_list_vals),
+                                std::end(children_list_vals));
+      } else if (func == "avg"){
+        w_result = vector_average(children_list_vals);
+      } else if (func == "sum"){
+        for (auto val : children_list_vals){
+          if (!std::isnan(val)){
+            w_result += val;
+          }}
+      } else if (func == "majority"){
+        w_result = most_frequent_element(children_list_vals);
+      } else {
+        w_result = -0.0;
+      }
+      // write the result into parent hexs
+      parentab[pind] = w_result;
+    }
+  }
+  return parentab;
+}
+
 // calculates sum of values in equal H3 cells of two rasters
 // (vectors with indexes and values); resamples one raster if
 // they have different levels

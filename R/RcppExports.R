@@ -184,6 +184,10 @@ resample_up <- function(func, children_ind, children_vals) {
     .Call(`_h3_resample_up`, func, children_ind, children_vals)
 }
 
+resample_up_any <- function(func, level_to, children_ind, children_vals) {
+    .Call(`_h3_resample_up_any`, func, level_to, children_ind, children_vals)
+}
+
 simple_sum <- function(ind1, z1, ind2, z2) {
     .Call(`_h3_simple_sum`, ind1, z1, ind2, z2)
 }
