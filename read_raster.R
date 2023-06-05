@@ -53,7 +53,7 @@ start_h3_l = choose_h3_level(initial_resolution)
 
 
 
-tab1 = h3::h3_raster_to_hex(rast1, 8)
+tab1 = h3::h3_raster_to_hex(rast1, 7)
 tab2 = h3::h3_raster_to_hex(rast2, 5)
 
 tab1 = tab1 %>% filter(!is.na(tab1$z))
