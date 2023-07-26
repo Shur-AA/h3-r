@@ -251,3 +251,21 @@ h3_resample_up <- function(func, children_ind, children_vals) {
 h3_resample_up_any <- function(func, level_to, children_ind, children_vals) {
   resample_up_any(func, level_to, children_ind, children_vals)
 }
+
+
+
+#' Calculates water flow directions and fills depressions
+#' needs h3 indexes and corresponding heights as well as center cell
+#' of the area
+#'
+#' @param inds vector of H3 indexes
+#' @param z corresponding heights
+#' @param start_cell center cell of analyzing area
+#'
+#'
+#' @return map of from-to H3 indexes - flow directions
+#'
+#' @export
+h3_flow_dir <- function(inds, z, start_cell) {
+  flow_dir(inds, z, start_cell)
+}

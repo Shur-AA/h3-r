@@ -464,6 +464,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cell_vecinity_circle
+std::vector<std::string> cell_vecinity_circle(std::string h3s, int radius);
+RcppExport SEXP _h3_cell_vecinity_circle(SEXP h3sSEXP, SEXP radiusSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type h3s(h3sSEXP);
+    Rcpp::traits::input_parameter< int >::type radius(radiusSEXP);
+    rcpp_result_gen = Rcpp::wrap(cell_vecinity_circle(h3s, radius));
+    return rcpp_result_gen;
+END_RCPP
+}
 // simple_focal
 std::map <std::string, double> simple_focal(std::vector<std::string>& inds, std::vector<double>& z, const std::string stat_type, int vecinity);
 RcppExport SEXP _h3_simple_focal(SEXP indsSEXP, SEXP zSEXP, SEXP stat_typeSEXP, SEXP vecinitySEXP) {
@@ -525,6 +537,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// flow_dir
+std::map <std::string, std::string> flow_dir(std::vector<std::string>& inds, std::vector<double>& z, std::string& start_cell);
+RcppExport SEXP _h3_flow_dir(SEXP indsSEXP, SEXP zSEXP, SEXP start_cellSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    Rcpp::traits::input_parameter< std::string& >::type start_cell(start_cellSEXP);
+    rcpp_result_gen = Rcpp::wrap(flow_dir(inds, z, start_cell));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -565,11 +590,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_global_extremum", (DL_FUNC) &_h3_global_extremum, 3},
     {"_h3_zonal_statistics", (DL_FUNC) &_h3_zonal_statistics, 6},
     {"_h3_cell_vecinity", (DL_FUNC) &_h3_cell_vecinity, 2},
+    {"_h3_cell_vecinity_circle", (DL_FUNC) &_h3_cell_vecinity_circle, 2},
     {"_h3_simple_focal", (DL_FUNC) &_h3_simple_focal, 4},
     {"_h3_indexes_to_coords", (DL_FUNC) &_h3_indexes_to_coords, 1},
     {"_h3_cell_azimuth", (DL_FUNC) &_h3_cell_azimuth, 1},
     {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
     {"_h3_drainage", (DL_FUNC) &_h3_drainage, 2},
+    {"_h3_flow_dir", (DL_FUNC) &_h3_flow_dir, 3},
     {NULL, NULL, 0}
 };
 

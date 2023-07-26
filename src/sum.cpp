@@ -7,9 +7,18 @@
 #include <algorithm>
 #include <set>
 #include <math.h>
+#include <queue>
+#include <bits/stdc++.h>
 
 
 using namespace Rcpp;
+
+
+// NB
+// изменила kring на hexring
+// надо везде при поиске значения по ключу-индексу Н3 внедрить map
+
+
 
 
 // internal functions
@@ -306,7 +315,7 @@ double expit(double x, int power){
 
 
 // for equal levels only
-// sums two vectors z values with corresponding indeces ind
+// sums two vectors z values with corresponding indexes ind
 std::map <std::string, double> sum_rasters(const std::vector<std::string> & ind1,
                                            const std::vector<double> & z1,
                                            const std::vector<std::string> & ind2,
@@ -399,10 +408,6 @@ double how_many_with_thesame_val(std::vector<double> &arr,
     if (arr[i] == that_val){
       ++dublicate_counter;
     }
-  if (dublicate_counter > 0){
-    --dublicate_counter; // as kring vicinity includes center cell
-    --n;
-  }
   }
   return dublicate_counter / n;
 }
@@ -419,9 +424,6 @@ double how_many_with_less_val(std::vector<double> &arr,
     if (arr[i] < that_val){
       ++counter;
     }
-    if (counter > 0){
-      --n;
-    }
   }
   return (counter * 1.0) / (n * 1.0);
 }
@@ -437,9 +439,6 @@ double how_many_with_greater_val(std::vector<double> &arr,
     if (arr[i] > that_val){
       ++counter;
     }
-    if (counter > 0){
-      --n;
-    }
   }
   return (counter * 1.0) / (n * 1.0);
 }
@@ -450,20 +449,6 @@ double unique_elements_num(std::vector<double> &arr)
 {
   std::set<double> s(arr.begin(), arr.end());
   return s.size();
-}
-
-
-
-// [[Rcpp::export]]
-std::string H3_to_parent(std::string h3s,
-                         int res) {
-  std::string z;
-  H3Index h3 = stringToH3(h3s.std::string::c_str());
-  H3Index h3Parent = h3ToParent(h3, res);
-  char h3ParentStr[17];
-  h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
-  z = h3ParentStr;
-  return z;
 }
 
 
@@ -684,11 +669,43 @@ double get_slope(double aa, double bb, double cc){
 }
 
 
+// calculates 1% height addition for adjacent cell from shared edge length, m
+
+double calc_addition(std::string cell1,
+                     std::string cell2){
+  H3Index h31 = stringToH3(cell1.std::string::c_str());
+  H3Index h32 = stringToH3(cell2.std::string::c_str());
+  H3Index h3Edge = getH3UnidirectionalEdge(h31, h32);
+  double elen = exactEdgeLengthM(h3Edge);
+  double add = sqrt(3) * elen / 200;
+  //std::cout<<edgeLengthM(8);
+  return add;
+}
+
+
+
+
+
 // END internal functions
 
 
 
 
+
+
+
+
+// [[Rcpp::export]]
+std::string H3_to_parent(std::string h3s,
+                         int res) {
+  std::string z;
+  H3Index h3 = stringToH3(h3s.std::string::c_str());
+  H3Index h3Parent = h3ToParent(h3, res);
+  char h3ParentStr[17];
+  h3ToString(h3Parent, h3ParentStr, sizeof(h3ParentStr));
+  z = h3ParentStr;
+  return z;
+}
 
 
 
@@ -1222,14 +1239,14 @@ std::map <std::string, std::vector<double>> zonal_statistics(
 }
 
 
-// Returns cell neighbors of defined order and less with the cell itself
+// Returns cell neighbors of defined order without the cell itself
 
 // [[Rcpp::export]]
 std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
     H3Index h3 = stringToH3(h3s.std::string::c_str());
-    int n = maxKringSize(radius);
+    int n = maxKringSize(radius) - 1; // exclude center cell
     H3Index* out = new H3Index[n]();
-    kRing(h3, radius, out);
+    hexRing(h3, radius, out);
     int counter = 0;
     for (int i = 0; i < n; ++i) {
       if (out[i] != 0) {
@@ -1248,6 +1265,35 @@ std::vector<std::string> cell_vecinity(std::string h3s, int radius) {
     delete[] out;
     return v;
   }
+
+
+
+// Returns all cell neighbors of defined order and less with the cell itself
+
+// [[Rcpp::export]]
+std::vector<std::string> cell_vecinity_circle(std::string h3s, int radius) {
+  H3Index h3 = stringToH3(h3s.std::string::c_str());
+  int n = maxKringSize(radius); // exclude center cell
+  H3Index* out = new H3Index[n]();
+  kRing(h3, radius, out);
+  int counter = 0;
+  for (int i = 0; i < n; ++i) {
+    if (out[i] != 0) {
+      ++counter;
+    }
+  }
+
+  std::vector<std::string> v(counter);
+  for(int i = 0; i < counter; ++i) {
+    char h3s[17];
+    h3ToString(out[i], h3s, sizeof(h3s));
+    v[i] = h3s;
+  }
+
+  // free(out);
+  delete[] out;
+  return v;
+}
 
 
 // Calculates base statistics in focal window
@@ -1455,31 +1501,138 @@ std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
     std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
   int n = inds.size();
+  std::map <std::string, double> temp_map;
+  for (int i = 0; i < n; i++){
+    temp_map[inds[i]] = z[i];
+  }
 
   for (int i = 0; i < n; i++){
     std::string this_ind = inds[i]; // current cell
+    double center_value = temp_map[this_ind];
     std::vector<std::string> this_vecinity = cell_vecinity(this_ind, 1); // current cell immediate neighbors
     // get values in focal window
     // assume that order in this_vecinity = in initial_vals
     std::string desc_slope_hex = this_ind;  // h3 index of the cell with descent slope
     double desc_slope_val = 0;  // h difference with the cell with descent slope
     for (auto const & vec_ind : this_vecinity){
-      for (int j = 0; j < n; j++){
-        if (inds[j] == vec_ind && vec_ind != this_ind && ((z[i] - z[j]) > desc_slope_val)){
-          desc_slope_val = z[i] - z[j];
-          desc_slope_hex = vec_ind;
-        }
+      double this_value = temp_map[vec_ind];
+      if (center_value - this_value > desc_slope_val){
+        desc_slope_val = center_value - this_value;
+        desc_slope_hex = vec_ind;
       }
     }
     geotab[this_ind] = desc_slope_hex;
-
   }
   return geotab;
 }
 
 
 
+// Calculates water flow directions and fills depressions
+// needs h3 indexes and corresponding heights as well as center cell
+
+// [[Rcpp::export]]
+std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
+                                             std::vector<double> & z,
+                                             std::string & start_cell){
+  std::map <std::string, std::string> geotab; // resulting tab
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = inds.size();
+
+  std::vector <std::string> ind_vect; // initial indexes except those with NaNs
+
+  // fill supportive structures
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      continue;
+    }else{
+      ind_vect.push_back(inds[i]);
+    }
+  }
+
+  // define ring size
+  // make all pairs with start cell and find max distance
+  int nn = ind_vect.size();
+  H3Index h3_from = stringToH3(start_cell.std::string::c_str());
+  int h3d = 0;  // ring radius
+  for (int l = 0; l < nn; l++){
+    H3Index h3_this = stringToH3(ind_vect[l].std::string::c_str());
+    if (h3Distance(h3_from, h3_this) > h3d){
+      h3d = h3Distance(h3_from, h3_this);
+    }
+  }
+
+  std::cout<<h3d<<std::endl;
+  h3d = 135;
+
+  // map with indata without NaNs and inside ring - ДОЛГО!
+  std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
+  std::map <std::string, double> data_map;
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      continue;
+    }else{
+      if (std::find(work_cells.begin(), work_cells.end(), inds[i]) != work_cells.end()){
+        data_map[inds[i]] = z[i];
+      }
+    }
+  }
+
+  // make min_heap priority queue
+  std::priority_queue<std::pair<double, std::string>,
+                      std::vector<std::pair<double, std::string>>,
+                      std::greater<std::pair<double, std::string>>> hq; // heights queue
+  std::vector<std::string> marked; // dublicate of hq to control elements
 
 
 
+  //collect first ring and pq
+  std::vector<std::string> border_ring = cell_vecinity(start_cell, h3d);
+  for (auto const & bord_ind : border_ring){
+    if (data_map.find(bord_ind) == data_map.end()) {  // check if ring cells have data
+      continue;
+    } else {
+      hq.push(make_pair(data_map[bord_ind], bord_ind));
+      marked.push_back(bord_ind);
+    }
+  }
 
+  for (auto const & mm : marked){
+    std::cout<<mm<<std::endl;
+  }
+
+  // go through queue
+  while(!hq.empty())
+  {
+    // get first cell in the queue - the lowest one
+    std::pair<double, std::string> low = hq.top();
+    hq.pop();
+
+    double pop_cell_value = data_map[low.second]; // height of active cell
+    // find all neighboring cells
+    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
+    // for cells in the vicinity check if they have not been marked
+    for (auto const & vec_ind : this_vecinity){
+      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
+        (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
+        double this_cell_value = data_map[vec_ind];
+        // check if sink
+        if (pop_cell_value - this_cell_value >= 0){  // не допускаем равных значений
+          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+        }
+        // add new cell in queue
+        hq.push(make_pair(this_cell_value, vec_ind));
+        marked.push_back(vec_ind);
+        geotab[vec_ind] = low.second;
+      }
+    }
+  }
+  return geotab;
+}

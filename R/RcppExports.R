@@ -204,6 +204,10 @@ cell_vecinity <- function(h3s, radius) {
     .Call(`_h3_cell_vecinity`, h3s, radius)
 }
 
+cell_vecinity_circle <- function(h3s, radius) {
+    .Call(`_h3_cell_vecinity_circle`, h3s, radius)
+}
+
 simple_focal <- function(inds, z, stat_type, vecinity) {
     .Call(`_h3_simple_focal`, inds, z, stat_type, vecinity)
 }
@@ -222,5 +226,9 @@ gradient_aspect <- function(inds, z, stat_type) {
 
 drainage <- function(inds, z) {
     .Call(`_h3_drainage`, inds, z)
+}
+
+flow_dir <- function(inds, z, start_cell) {
+    .Call(`_h3_flow_dir`, inds, z, start_cell)
 }
 
