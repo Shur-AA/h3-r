@@ -232,3 +232,7 @@ flow_dir <- function(inds, z, start_cell) {
     .Call(`_h3_flow_dir`, inds, z, start_cell)
 }
 
+flow_acc <- function(ifrom, ito) {
+    .Call(`_h3_flow_acc`, ifrom, ito)
+}
+

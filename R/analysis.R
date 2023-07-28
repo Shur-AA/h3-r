@@ -269,3 +269,22 @@ h3_resample_up_any <- function(func, level_to, children_ind, children_vals) {
 h3_flow_dir <- function(inds, z, start_cell) {
   flow_dir(inds, z, start_cell)
 }
+
+
+
+
+#' Calculates water flow accumulation from flow direction table
+#'
+#'
+#'
+#' @param ifrom vector of H3 indexes
+#' @param ito corresponding heights
+#'
+#'
+#' @return map of H3 indexes and cell's accumulation value
+#'
+#' @export
+h3_flow_acc <- function(ifrom, ito) {
+  flow_acc(ifrom, ito)
+}
+

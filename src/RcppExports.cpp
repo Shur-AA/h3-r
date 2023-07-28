@@ -550,6 +550,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// flow_acc
+std::map <std::string, double> flow_acc(std::vector<std::string>& ifrom, std::vector<std::string>& ito);
+RcppExport SEXP _h3_flow_acc(SEXP ifromSEXP, SEXP itoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito(itoSEXP);
+    rcpp_result_gen = Rcpp::wrap(flow_acc(ifrom, ito));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -597,6 +609,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
     {"_h3_drainage", (DL_FUNC) &_h3_drainage, 2},
     {"_h3_flow_dir", (DL_FUNC) &_h3_flow_dir, 3},
+    {"_h3_flow_acc", (DL_FUNC) &_h3_flow_acc, 2},
     {NULL, NULL, 0}
 };
 

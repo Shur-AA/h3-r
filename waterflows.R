@@ -5,6 +5,7 @@ library(sp)
 library(tidyverse)
 library(akima)
 library(tidyr)
+library(readxl)
 
 options(scipen=999)
 rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
@@ -50,6 +51,10 @@ start_h3_l = choose_h3_level(initial_resolution)
 tab = h3::h3_raster_to_hex(rast, start_h3_l)
 c2 = "88ada22a35fffff"
 k = h3:::flow_dir(tab$h3_ind, tab$z, c2)
+
+t = readxl::read_excel("C:/Users/user/Downloads/fd.xlsx")
+k = h3::h3_flow_acc(t$from, t$to)
+write.csv(k, 'C:/Users/user/Downloads/fd.csv')
 
 
 

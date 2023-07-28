@@ -1636,3 +1636,53 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
   }
   return geotab;
 }
+
+
+
+
+
+
+// Calculates water flow accumulation on flow direction table (from-to)
+
+
+// [[Rcpp::export]]
+std::map <std::string, double> flow_acc(std::vector<std::string> & ifrom,
+                                        std::vector<std::string> & ito){
+  std::map <std::string, double> geotab; // resulting tab
+  int h3_level = h3GetResolution(stringToH3(ifrom[0].std::string::c_str()));
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of flow directions
+
+  // fill supportive structure
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+    geotab[ifrom[i]] = 0; // to fill with 0's source cells
+  }
+
+  // go through all from cells
+  for (auto const & dir_pair : fromto){
+    geotab[dir_pair.second]++;
+    std::string ind = dir_pair.second;
+    while(true){
+      if (fromto.find(ind) != fromto.end()){
+        ind = fromto[ind];
+        geotab[ind]++;
+      }else{
+        break;
+      }
+    }
+  }
+
+
+  return geotab;
+}
+
+
