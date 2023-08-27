@@ -787,6 +787,74 @@ std::map <std::string, std::vector<double>> hex_centers_inbbox(const std::vector
 }
 
 
+
+// defines H3 indexes of center points in defined level
+// of hexagons which covers defined extent in defined level (usually 1 level)
+// and hexagons boundary geometry
+// returns H3 indexes and boundary geo coords
+
+// [[Rcpp::export]]
+std::map <std::string, std::vector<double>> hex_boundary_inbbox(const std::vector<double> & ext_lon,
+                                                               const std::vector<double> & ext_lat,
+                                                               const int & tile_res,
+                                                               const int & center_res){
+  // number of vertices in the extent
+  int vert_num = ext_lon.size();
+  // converting extent vertices coords in
+  // special polygon structure which H3 understands
+
+  // make geofence from geocoord
+  Geofence geofence;
+  geofence.numVerts= vert_num;
+  GeoCoord* sfVerts = new GeoCoord[vert_num];
+  for (int i = 0; i < vert_num; i++) {
+    GeoCoord coord;
+    coord.lat = deg_to_rad(check_lat(ext_lat[i]));
+    coord.lon = deg_to_rad(check_lon(ext_lon[i]));
+    sfVerts[i] = coord;
+  }
+  geofence.verts = sfVerts;
+
+  // Make polygon
+  GeoPolygon extent;
+  extent.geofence = geofence;
+  extent.numHoles = 0;
+
+  // h3 indexes in extent
+  int numHexagons = maxPolyfillSize(&extent, tile_res);
+
+  H3Index* hexagons = new H3Index[numHexagons]();
+  polyfill(&extent, tile_res, hexagons);
+
+  std::map <std::string, std::vector<double>> geotab;  // result table
+
+  for (int i = 0; i < numHexagons; i++) {
+    H3Index hexagon = hexagons[i];
+    if (hexagon != 0) {
+      // define center cell index in needed level
+      GeoCoord hex_center;
+      h3ToGeo(hexagon, &hex_center);
+      H3Index h3 = geoToH3(&hex_center, center_res);
+      char h3s[17];
+      h3ToString(h3, h3s, sizeof(h3s));
+      std::cout<<h3s<<std::endl;
+      // extract coords of cell's boundary
+      GeoBoundary geoBoundary;
+      h3ToGeoBoundary(hexagon, &geoBoundary);
+      std::vector<double> coords;
+      for (int i = 0; i < geoBoundary.numVerts; ++i) {
+        coords.push_back(radsToDegs(geoBoundary.verts[i].lon));
+        coords.push_back(radsToDegs(geoBoundary.verts[i].lat));
+      }
+
+      geotab[h3s] = coords;
+    }
+  }
+  delete[] hexagons;
+  return geotab;
+}
+
+
 // given parent H3 indexes and corresponding values defines
 // list of children in any level and maps parents' values
 
@@ -1570,7 +1638,7 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
   }
 
   std::cout<<h3d<<std::endl;
-  h3d = 135;
+  //h3d = 600;
 
   // map with indata without NaNs and inside ring - ДОЛГО!
   std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);

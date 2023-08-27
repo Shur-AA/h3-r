@@ -8,9 +8,28 @@ library(tidyr)
 
 options(scipen=999)
 #rpath1 = "./test_samples/ufa_igbp.tif"
-rpath1 = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
-rpath2 = "./test_samples/ufa_glc.tif"
+rpath1 = "D:/1_Аспа/Information loss/croped/ghsl_40/Волгоград.tif"
 rast1 = read_stars(rpath1) # input 1-band raster file 1
+
+tab1 = h3::h3_raster_to_hex(rast1, 9)
+tab1 = tab1 %>% filter(!is.na(tab1$z))
+
+tab2 = h3_resample_up("sum", tab1$h3_ind, tab1$z) %>%
+  as.data.frame()
+tab2 = mutate(tab2, h3_ind = rownames(tab2)) %>%
+  filter(. > 0)
+rownames(tab2) = seq(1, length(tab2$h3_ind), 1)
+colnames(tab2) = c('z', 'h3_ind')
+
+t = rbind(t, tab2)
+
+
+
+
+
+
+
+rpath2 = "./test_samples/ufa_glc.tif"
 rast2 = read_stars(rpath2) # input 1-band raster file 2
 
 
@@ -53,11 +72,16 @@ start_h3_l = choose_h3_level(initial_resolution)
 
 
 
-tab1 = h3::h3_raster_to_hex(rast1, 7)
+
+
+
+
+tab1 %>% select(-x, -y) %>% write.csv('C:/Users/user/Downloads/nn.csv')
+
+
+
+
 tab2 = h3::h3_raster_to_hex(rast2, 5)
-
-tab1 = tab1 %>% filter(!is.na(tab1$z))
-
 
 local_raster_sum = h3::h3_simple_sum(tab1$h3_ind,
                                       tab1$z,

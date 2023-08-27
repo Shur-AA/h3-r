@@ -358,6 +358,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// hex_boundary_inbbox
+std::map <std::string, std::vector<double>> hex_boundary_inbbox(const std::vector<double>& ext_lon, const std::vector<double>& ext_lat, const int& tile_res, const int& center_res);
+RcppExport SEXP _h3_hex_boundary_inbbox(SEXP ext_lonSEXP, SEXP ext_latSEXP, SEXP tile_resSEXP, SEXP center_resSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type ext_lon(ext_lonSEXP);
+    Rcpp::traits::input_parameter< const std::vector<double>& >::type ext_lat(ext_latSEXP);
+    Rcpp::traits::input_parameter< const int& >::type tile_res(tile_resSEXP);
+    Rcpp::traits::input_parameter< const int& >::type center_res(center_resSEXP);
+    rcpp_result_gen = Rcpp::wrap(hex_boundary_inbbox(ext_lon, ext_lat, tile_res, center_res));
+    return rcpp_result_gen;
+END_RCPP
+}
 // resample_down
 std::map <std::string, double> resample_down(const int& level_to, const std::vector<std::string>& parent_ind, const std::vector<double>& parent_vals);
 RcppExport SEXP _h3_resample_down(SEXP level_toSEXP, SEXP parent_indSEXP, SEXP parent_valsSEXP) {
@@ -594,6 +608,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_H3_to_parent", (DL_FUNC) &_h3_H3_to_parent, 2},
     {"_h3_points_to_H3", (DL_FUNC) &_h3_points_to_H3, 3},
     {"_h3_hex_centers_inbbox", (DL_FUNC) &_h3_hex_centers_inbbox, 3},
+    {"_h3_hex_boundary_inbbox", (DL_FUNC) &_h3_hex_boundary_inbbox, 4},
     {"_h3_resample_down", (DL_FUNC) &_h3_resample_down, 3},
     {"_h3_get_direct_parents", (DL_FUNC) &_h3_get_direct_parents, 1},
     {"_h3_resample_up", (DL_FUNC) &_h3_resample_up, 3},

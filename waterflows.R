@@ -1,14 +1,13 @@
 library(dplyr)
 library(stars)
 library(sf)
-library(sp)
 library(tidyverse)
 library(akima)
 library(tidyr)
 library(readxl)
 
 options(scipen=999)
-rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_etopo60.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
 
@@ -44,71 +43,93 @@ choose_h3_level = function(raster_cell_area){
 }
 
 
+raster_to_bbox = function(raster_obj){
+  box = st_bbox(raster_obj)
+  envelope = box[c(1,3,2,4)]
+  # polygon coords
+  box_coords = data.frame(lon_p = c(as.numeric(envelope[1]),
+                                    as.numeric(envelope[2]),
+                                    as.numeric(envelope[2]),
+                                    as.numeric(envelope[1]),
+                                    as.numeric(envelope[1])),
+                          lat_p = c(as.numeric(envelope[3]),
+                                    as.numeric(envelope[3]),
+                                    as.numeric(envelope[4]),
+                                    as.numeric(envelope[4]),
+                                    as.numeric(envelope[3])))
+  return (box_coords)
+}
+
+
 initial_resolution = get_rast_cellarea(rast)
 start_h3_l = choose_h3_level(initial_resolution)
 
-
-tab = h3::h3_raster_to_hex(rast, start_h3_l)
-c2 = "88ada22a35fffff"
-k = h3:::flow_dir(tab$h3_ind, tab$z, c2)
-
-t = readxl::read_excel("C:/Users/user/Downloads/fd.xlsx")
-k = h3::h3_flow_acc(t$from, t$to)
-write.csv(k, 'C:/Users/user/Downloads/fd.csv')
-
-
-
-
-tab[is.na(tab)] = -9999
-tab = tab1 %>% filter(!is.na(tab$z))
-
-center = "88adaec893fffff"
-
-
-
-local_raster_sum = h3::h3_simple_sum(tab1$h3_ind,
-                                     tab1$z,
-                                     tab2$h3_ind,
-                                     tab2$z) %>%
-  as.data.frame()
-
-global_raster_stat = h3::h3_global_extremum(tab2$h3_ind,
-                                            tab2$z,
-                                            'max')
-stat_type = 'max'
-zonal_raster_sum = h3::h3_zonal_statistics(tab1$h3_ind,
-                                           as.integer(tab1$z),
-                                           tab2$h3_ind,
-                                           tab2$z,
-                                           stat_type,
-                                           F) %>%
-  do.call(rbind, .) %>%
-  as.data.frame() %>%
-  mutate(ind = rownames(.))
-rownames(zonal_raster_sum) = seq(1, length(zonal_raster_sum$ind), 1)
-colnames(zonal_raster_sum) = c('zone_code', stat_type, 'hex_ind')
-
-focal_raster = h3::h3_simple_focal(tab1$h3_ind,
-                                   tab1$z,
-                                   stat_type, 2) %>%
-  list() %>%
-  do.call(rbind, .) %>%
-  as.data.frame() %>%
-  pivot_longer(cols = everything(),
-               names_to = 'indexes',
-               values_to = 'values')
-coords_focal = h3::h3_indexes_to_coords(focal_raster$indexes)%>%
+# tiling raster
+rast_extent = raster_to_bbox(rast)
+hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
+                                       rast_extent$lat_p,
+                                       2, start_h3_l) %>%
   do.call(rbind, .) %>%
   as.data.frame()
-coords_focal$ind = rownames(coords_focal)
-colnames(coords_focal) = c('lon_hex', 'lat_hex', 'ind')
-rownames(coords_focal) = seq(1, length(coords_focal$ind), 1)
-coords_focal = cbind(coords_focal, focal_raster$values)
-write.csv(k, "C:/Users/a.shurygina/Downloads/testfoc2_h3.csv")
+hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
+rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
-hi = c('81263ffffffffff', '81267ffffffffff', '8126bffffffffff', '8126fffffffffff',
-       '81273ffffffffff', '81277ffffffffff', '8127bffffffffff')
-g = lapply(hi, function(X){h3_cell_azimuth(X)})
+for (h in 728:nrow(hex_bnd_cntr)){
+  print(h)
+  # преобразуем координаты и делаем полигон
+  ahex = hex_bnd_cntr[h,] %>% select(-ind)
+  plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
+  ends = which(apply(plg_m, 1, function(x) identical(x, plg_m[1,])))
+  a = max(ends) + 1
+  if (a != 2){
+    b = nrow(plg_m)
+    plg_m = plg_m[-(a:b),] %>% as.data.frame()
+  }else{
+    plg_m = rbind(plg_m, plg_m[1,]) %>% as.data.frame()
+  }
+  plg_m$V1 = as.double(plg_m$V1)
+  plg_m$V2 = as.double(plg_m$V2)
+  plg_m = as.matrix(plg_m)
+  coords = list(plg_m)
+  pol = st_polygon(coords) %>% st_sfc()
+  st_crs(pol) = st_crs(4326)
 
+  # делаем буфер на 5,3 км, чтобы тайлы были внахлёст
+  pol = st_transform(pol, crs = 3857) %>%
+    st_buffer(dist = 6000) %>%
+    st_transform(crs = 4326)
+
+
+  tile = st_crop(rast, pol)
+
+
+  tab = h3::h3_raster_to_hex(tile, start_h3_l)
+  fd = h3::h3_flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
+
+  if (length(fd) > 2){
+    write.csv(fd, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+    fd = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+    colnames(fd) = c('from', 'to')
+    fa = h3::h3_flow_acc(fd$from, fd$to)
+    write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
+  }
+}
+
+
+
+
+
+#tab = h3::h3_raster_to_hex(rast, start_h3_l)
+#c2 = "88ada22a35fffff"
+#c2 = "87ada22a0ffffff"
+#k = h3:::flow_dir(tab$h3_ind, tab$z, c2)
+
+#t = readxl::read_excel("C:/Users/user/Downloads/fd10.xlsx")
+#k = h3::h3_flow_acc(t$from, t$to)
+#write.csv(k, 'C:/Users/user/Downloads/fa10.csv')
+
+
+#tab[is.na(tab)] = -9999
+#tab = tab1 %>% filter(!is.na(tab$z))
 

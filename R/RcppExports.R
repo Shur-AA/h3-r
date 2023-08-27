@@ -172,6 +172,10 @@ hex_centers_inbbox <- function(ext_lon, ext_lat, res) {
     .Call(`_h3_hex_centers_inbbox`, ext_lon, ext_lat, res)
 }
 
+hex_boundary_inbbox <- function(ext_lon, ext_lat, tile_res, center_res) {
+    .Call(`_h3_hex_boundary_inbbox`, ext_lon, ext_lat, tile_res, center_res)
+}
+
 resample_down <- function(level_to, parent_ind, parent_vals) {
     .Call(`_h3_resample_down`, level_to, parent_ind, parent_vals)
 }
