@@ -64,6 +64,7 @@ raster_to_bbox = function(raster_obj){
 initial_resolution = get_rast_cellarea(rast)
 start_h3_l = choose_h3_level(initial_resolution)
 
+
 # tiling raster
 rast_extent = raster_to_bbox(rast)
 hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
@@ -75,8 +76,9 @@ hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
 rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
-for (h in 728:nrow(hex_bnd_cntr)){
+for (h in 786:787){
   print(h)
+  h = 785
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
   plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
@@ -95,16 +97,21 @@ for (h in 728:nrow(hex_bnd_cntr)){
   pol = st_polygon(coords) %>% st_sfc()
   st_crs(pol) = st_crs(4326)
 
-  # делаем буфер на 5,3 км, чтобы тайлы были внахлёст
-  pol = st_transform(pol, crs = 3857) %>%
-    st_buffer(dist = 6000) %>%
-    st_transform(crs = 4326)
+  # делаем буфер на 6 км, чтобы тайлы были внахлёст
+  pol_plus = st_transform(pol, crs = 3857) %>%
+              st_buffer(dist = 6000) %>%
+              st_transform(crs = 4326)
 
-
-  tile = st_crop(rast, pol)
-
-
+  # получаем широкий растр
+  tile = st_crop(rast, pol_plus)
+  # конвертируем его в сетку
   tab = h3::h3_raster_to_hex(tile, start_h3_l)
+  # выбираем исходным шестиугольником только те ячейки, чьи узлы в него попадают
+  tab_pnt = st_as_sf(tab, coords = c('x', 'y'), crs = 4326)
+  tab1 = tab_pnt[pol,]
+
+  fd1 = h3:::flow_dir_extended(tab1$h3_ind, tab1$z, hex_bnd_cntr$ind[h], tab$h3_ind, tab$z)
+
   fd = h3::h3_flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
 
   if (length(fd) > 2){
@@ -118,7 +125,13 @@ for (h in 728:nrow(hex_bnd_cntr)){
 
 
 
+fd = read.csv("C:/Users/user/Downloads/corected.csv", sep = ';')
 
+fa = h3::h3_flow_acc(fd$from, fd$to)
+write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
+
+fd = read.csv("C:/Users/user/Downloads/gidro/fd786_1.csv", sep = ',')
+colnames(fd) = c('from', 'to')
 
 #tab = h3::h3_raster_to_hex(rast, start_h3_l)
 #c2 = "88ada22a35fffff"
@@ -126,10 +139,10 @@ for (h in 728:nrow(hex_bnd_cntr)){
 #k = h3:::flow_dir(tab$h3_ind, tab$z, c2)
 
 #t = readxl::read_excel("C:/Users/user/Downloads/fd10.xlsx")
-#k = h3::h3_flow_acc(t$from, t$to)
-#write.csv(k, 'C:/Users/user/Downloads/fa10.csv')
+k = h3:::flow_acc_stnd(fd$from, fd$to)
+write.csv(k, 'C:/Users/user/Downloads/fa7861_2.csv')
 
 
 #tab[is.na(tab)] = -9999
-#tab = tab1 %>% filter(!is.na(tab$z))
+tab = tab %>% filter(!is.na(tab$z))
 

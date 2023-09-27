@@ -1709,6 +1709,137 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
 
 
 
+// Calculates water flow directions and fills depressions
+// needs h3 indexes and corresponding heights as well as center cell.
+// Has some extra steps to connect tiles after all.
+
+// [[Rcpp::export]]
+std::map <std::string, std::string> flow_dir_extended(std::vector<std::string> & inds,
+                                                       std::vector<double> & z,
+                                                       std::string & start_cell,
+                                                       std::vector<std::string> & inds_buf,
+                                                       std::vector<double> & z_buf){
+  std::map <std::string, std::string> geotab; // resulting tab
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = inds.size();
+  int n_ext = inds_buf.size();
+
+  std::vector <std::string> ind_vect; // initial indexes except those with NaNs
+  std::vector <std::string> ind_vect_ext; // extended initial indexes except those with NaNs
+
+  // fill supportive structures
+  // 1. For initial area
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      continue;
+    }else{
+      ind_vect.push_back(inds[i]);
+    }
+  }
+
+  // 2. For extended area
+  for (int i = 0; i < n_ext; i++){
+    if (isnan(z_buf[i])){
+      continue;
+    }else{
+      ind_vect_ext.push_back(inds_buf[i]);
+    }
+  }
+
+
+  // define ring size
+  // make all pairs with start cell and find max distance
+  int nn = ind_vect.size();
+  H3Index h3_from = stringToH3(start_cell.std::string::c_str());
+  int h3d = 0;  // ring radius
+  for (int l = 0; l < nn; l++){
+    H3Index h3_this = stringToH3(ind_vect[l].std::string::c_str());
+    if (h3Distance(h3_from, h3_this) > h3d){
+      h3d = h3Distance(h3_from, h3_this);
+    }
+  }
+
+  h3d = h3d + 3;
+  std::cout<<h3d<<std::endl;
+
+
+  // map with indata without NaNs and inside ring - ДОЛГО!
+  std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
+  std::map <std::string, double> data_map;
+  for (int i = 0; i < n_ext; i++){
+    if (isnan(z_buf[i])){
+      continue;
+    }else{
+      if (std::find(work_cells.begin(), work_cells.end(), inds_buf[i]) != work_cells.end()){
+        data_map[inds_buf[i]] = z_buf[i];
+      }
+    }
+  }
+
+  // make min_heap priority queue
+  std::priority_queue<std::pair<double, std::string>,
+                      std::vector<std::pair<double, std::string>>,
+                      std::greater<std::pair<double, std::string>>> hq; // heights queue
+  std::vector<std::string> marked; // dublicate of hq to control elements
+
+
+
+  //collect first ring and pq
+  std::vector<std::string> border_ring = cell_vecinity(start_cell, h3d);
+  for (auto const & bord_ind : border_ring){
+    if (data_map.find(bord_ind) == data_map.end()) {  // check if ring cells have data
+      continue;
+    } else {
+      hq.push(make_pair(data_map[bord_ind], bord_ind));
+      marked.push_back(bord_ind);
+    }
+  }
+
+  for (auto const & mm : marked){
+    std::cout<<mm<<std::endl;
+  }
+
+  // go through queue
+  while(!hq.empty())
+  {
+    // get first cell in the queue - the lowest one
+    std::pair<double, std::string> low = hq.top();
+    hq.pop();
+
+    double pop_cell_value = data_map[low.second]; // height of active cell
+    // find all neighboring cells
+    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
+    // for cells in the vicinity check if they have not been marked
+    for (auto const & vec_ind : this_vecinity){
+      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
+          (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
+        double this_cell_value = data_map[vec_ind];
+        // check if sink
+        if (pop_cell_value - this_cell_value >= 0){  // не допускаем равных значений
+          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+        }
+        // add new cell in queue
+        hq.push(make_pair(this_cell_value, vec_ind));
+        marked.push_back(vec_ind);
+        if (std::find(ind_vect.begin(), ind_vect.end(), vec_ind) != ind_vect.end() ||
+            std::find(ind_vect.begin(), ind_vect.end(), low.second) != ind_vect.end()){
+          geotab[vec_ind] = low.second;
+        }
+      }
+    }
+  }
+  return geotab;
+}
+
+
+
 
 // Calculates water flow accumulation on flow direction table (from-to)
 
@@ -1729,28 +1860,107 @@ std::map <std::string, double> flow_acc(std::vector<std::string> & ifrom,
 
   std::map <std::string, std::string> fromto; // table of flow directions
 
+
   // fill supportive structure
   for (int i = 0; i < n; i++){
     fromto[ifrom[i]] = ito[i];
     geotab[ifrom[i]] = 0; // to fill with 0's source cells
   }
 
-  // go through all from cells
+  // go through all 'from' cells
   for (auto const & dir_pair : fromto){
     geotab[dir_pair.second]++;
     std::string ind = dir_pair.second;
+    std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
     while(true){
       if (fromto.find(ind) != fromto.end()){
-        ind = fromto[ind];
-        geotab[ind]++;
+        // checking loops
+        control_loops[ind]++;
+        bool flag = false;
+        for (auto const & loop_pair : control_loops){
+          // если посетили больше 1 раза, значит уже зациклились
+          if (loop_pair.second > 1){flag = true;}
+        }
+        if (flag){
+          break;
+        }else{
+          ind = fromto[ind];
+          geotab[ind]++;
+        }
       }else{
         break;
       }
     }
   }
 
-
   return geotab;
 }
 
+
+
+
+// Calculates water flow accumulation on flow direction table (from-to) in
+// standard way (https://tsamsonov.github.io/gis-course/)
+
+// [[Rcpp::export]]
+std::map <std::string, int> flow_acc_stnd(std::vector<std::string> & ifrom,
+                                              std::vector<std::string> & ito){
+  std::map <std::string, int> geotab; // resulting tab
+  std::cout<<"Geotab created" << std::endl;
+  int h3_level = h3GetResolution(stringToH3(ifrom[0].std::string::c_str()));
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of flow directions
+  std::cout<<"Fromto created" << std::endl;
+
+  // fill supportive structure
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+    if (std::find(ito.begin(), ito.end(), ifrom[i]) == ito.end()){
+      geotab[ifrom[i]] = 0;
+    }
+  }
+
+  while (geotab.size() != fromto.size()){
+    std::cout<< geotab.size() << std::endl;
+    std::cout<< fromto.size() << std::endl;
+    for (auto const & dir_pair : fromto){
+      if (geotab.find(dir_pair.first) != geotab.end()){
+        if (geotab[dir_pair.first] == 0){continue;}
+      }else{
+        bool this_step = true;
+        std::vector<int> dreinage;
+        for (int i = 0; i < n; i++){
+          if (ito[i] == dir_pair.first){
+            if (geotab.find(ifrom[i]) == geotab.end()){
+              this_step = false;
+              break;
+            }else{
+              dreinage.push_back(geotab[ifrom[i]]);
+            }
+          }
+        }
+        if (this_step){
+          geotab[dir_pair.first] = dreinage.size();
+          for (int i = 0; i < dreinage.size(); i++){
+            geotab[dir_pair.first] += dreinage[i];
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+
+  return geotab;
+}
 
