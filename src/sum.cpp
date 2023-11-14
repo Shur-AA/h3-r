@@ -1612,6 +1612,7 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
   catch(int x){
     std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
+
   int n = inds.size();
 
   std::vector <std::string> ind_vect; // initial indexes except those with NaNs
@@ -1638,7 +1639,6 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
   }
 
   std::cout<<h3d<<std::endl;
-  //h3d = 600;
 
   // map with indata without NaNs and inside ring - ДОЛГО!
   std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
@@ -1653,135 +1653,6 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
     }
   }
 
-  // make min_heap priority queue
-  std::priority_queue<std::pair<double, std::string>,
-                      std::vector<std::pair<double, std::string>>,
-                      std::greater<std::pair<double, std::string>>> hq; // heights queue
-  std::vector<std::string> marked; // dublicate of hq to control elements
-
-
-
-  //collect first ring and pq
-  std::vector<std::string> border_ring = cell_vecinity(start_cell, h3d);
-  for (auto const & bord_ind : border_ring){
-    if (data_map.find(bord_ind) == data_map.end()) {  // check if ring cells have data
-      continue;
-    } else {
-      hq.push(make_pair(data_map[bord_ind], bord_ind));
-      marked.push_back(bord_ind);
-    }
-  }
-
-  for (auto const & mm : marked){
-    std::cout<<mm<<std::endl;
-  }
-
-  // go through queue
-  while(!hq.empty())
-  {
-    // get first cell in the queue - the lowest one
-    std::pair<double, std::string> low = hq.top();
-    hq.pop();
-
-    double pop_cell_value = data_map[low.second]; // height of active cell
-    // find all neighboring cells
-    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
-    // for cells in the vicinity check if they have not been marked
-    for (auto const & vec_ind : this_vecinity){
-      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
-        (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
-        double this_cell_value = data_map[vec_ind];
-        // check if sink
-        if (pop_cell_value - this_cell_value >= 0){  // не допускаем равных значений
-          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
-        }
-        // add new cell in queue
-        hq.push(make_pair(this_cell_value, vec_ind));
-        marked.push_back(vec_ind);
-        geotab[vec_ind] = low.second;
-      }
-    }
-  }
-  return geotab;
-}
-
-
-
-
-
-// Calculates water flow directions and fills depressions
-// needs h3 indexes and corresponding heights as well as center cell.
-// Has some extra steps to connect tiles after all.
-
-// [[Rcpp::export]]
-std::map <std::string, std::string> flow_dir_extended(std::vector<std::string> & inds,
-                                                       std::vector<double> & z,
-                                                       std::string & start_cell,
-                                                       std::vector<std::string> & inds_buf,
-                                                       std::vector<double> & z_buf){
-  std::map <std::string, std::string> geotab; // resulting tab
-  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
-  try{
-    if (inds.size() != z.size()){
-      throw 2; // not equal lengths exception
-    }}
-  catch(int x){
-    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
-  }
-  int n = inds.size();
-  int n_ext = inds_buf.size();
-
-  std::vector <std::string> ind_vect; // initial indexes except those with NaNs
-  std::vector <std::string> ind_vect_ext; // extended initial indexes except those with NaNs
-
-  // fill supportive structures
-  // 1. For initial area
-  for (int i = 0; i < n; i++){
-    if (isnan(z[i])){
-      continue;
-    }else{
-      ind_vect.push_back(inds[i]);
-    }
-  }
-
-  // 2. For extended area
-  for (int i = 0; i < n_ext; i++){
-    if (isnan(z_buf[i])){
-      continue;
-    }else{
-      ind_vect_ext.push_back(inds_buf[i]);
-    }
-  }
-
-
-  // define ring size
-  // make all pairs with start cell and find max distance
-  int nn = ind_vect.size();
-  H3Index h3_from = stringToH3(start_cell.std::string::c_str());
-  int h3d = 0;  // ring radius
-  for (int l = 0; l < nn; l++){
-    H3Index h3_this = stringToH3(ind_vect[l].std::string::c_str());
-    if (h3Distance(h3_from, h3_this) > h3d){
-      h3d = h3Distance(h3_from, h3_this);
-    }
-  }
-
-  h3d = h3d + 3;
-  std::cout<<h3d<<std::endl;
-
-
-  // map with indata without NaNs and inside ring - ДОЛГО!
-  std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
-  std::map <std::string, double> data_map;
-  for (int i = 0; i < n_ext; i++){
-    if (isnan(z_buf[i])){
-      continue;
-    }else{
-      if (std::find(work_cells.begin(), work_cells.end(), inds_buf[i]) != work_cells.end()){
-        data_map[inds_buf[i]] = z_buf[i];
-      }
-    }
-  }
 
   // make min_heap priority queue
   std::priority_queue<std::pair<double, std::string>,
@@ -1803,7 +1674,7 @@ std::map <std::string, std::string> flow_dir_extended(std::vector<std::string> &
   }
 
   for (auto const & mm : marked){
-    std::cout<<mm<<std::endl;
+  std::cout<<mm<<std::endl;
   }
 
   // go through queue
@@ -1816,20 +1687,43 @@ std::map <std::string, std::string> flow_dir_extended(std::vector<std::string> &
     double pop_cell_value = data_map[low.second]; // height of active cell
     // find all neighboring cells
     std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
-    // for cells in the vicinity check if they have not been marked
+
+
+    // check if the cell is on the edge of DEM
+    bool is_edge_cell = false;
+    bool is_lowest = true;  // and the lowest among neighbors
     for (auto const & vec_ind : this_vecinity){
-      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
-          (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
-        double this_cell_value = data_map[vec_ind];
-        // check if sink
-        if (pop_cell_value - this_cell_value >= 0){  // не допускаем равных значений
-          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+      if (data_map.find(vec_ind) == data_map.end()){
+        is_edge_cell = true;
+      } else{
+        if (pop_cell_value - data_map[vec_ind] > 0){
+          is_lowest = false;
         }
-        // add new cell in queue
-        hq.push(make_pair(this_cell_value, vec_ind));
-        marked.push_back(vec_ind);
-        if (std::find(ind_vect.begin(), ind_vect.end(), vec_ind) != ind_vect.end() ||
-            std::find(ind_vect.begin(), ind_vect.end(), low.second) != ind_vect.end()){
+      }
+    }
+
+// если это устье, ничего не проверяем, а всех соседей сливаем в него
+    if (is_edge_cell && is_lowest){
+      for (auto const & vec_ind : this_vecinity){
+        if (data_map.find(vec_ind) != data_map.end()){ // if this cell have data
+          geotab[vec_ind] = low.second;
+          marked.push_back(vec_ind);
+          marked.push_back(vec_ind);
+        }
+      }
+    }else{
+      // for cells in the vicinity check if they have not been marked
+      for (auto const & vec_ind : this_vecinity){
+        if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
+            (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
+          double this_cell_value = data_map[vec_ind];
+          // check if sink
+            if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
+              this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+          }
+          // add new cell in queue
+          hq.push(make_pair(this_cell_value, vec_ind));
+          marked.push_back(vec_ind);
           geotab[vec_ind] = low.second;
         }
       }
@@ -1837,7 +1731,6 @@ std::map <std::string, std::string> flow_dir_extended(std::vector<std::string> &
   }
   return geotab;
 }
-
 
 
 
@@ -1904,7 +1797,7 @@ std::map <std::string, double> flow_acc(std::vector<std::string> & ifrom,
 
 // [[Rcpp::export]]
 std::map <std::string, int> flow_acc_stnd(std::vector<std::string> & ifrom,
-                                              std::vector<std::string> & ito){
+                                          std::vector<std::string> & ito){
   std::map <std::string, int> geotab; // resulting tab
   std::cout<<"Geotab created" << std::endl;
   int h3_level = h3GetResolution(stringToH3(ifrom[0].std::string::c_str()));
@@ -1958,9 +1851,84 @@ std::map <std::string, int> flow_acc_stnd(std::vector<std::string> & ifrom,
   }
 
 
-
-
-
   return geotab;
 }
 
+
+
+
+
+
+// Calculates border cells' links based on flow direction table (from-to)
+
+
+// [[Rcpp::export]]
+std::map <std::string, std::string> fd_border_links(std::vector<std::string> & h3ind,
+                                                    std::vector<std::string> & ifrom,
+                                                    std::vector<std::string> & ito,
+                                                    std::string & start_cell){
+  std::map <std::string, std::string> geotab; // resulting tab
+  int n = ifrom.size();
+  int n_base = h3ind.size();
+
+  // define ring size
+  // make all pairs with start cell and find max distance
+  H3Index h3_from = stringToH3(start_cell.std::string::c_str());
+  int h3d = 0;  // ring radius
+  for (int l = 0; l < n_base; l++){
+    H3Index h3_this = stringToH3(h3ind[l].std::string::c_str());
+    if (h3Distance(h3_from, h3_this) > h3d){
+      h3d = h3Distance(h3_from, h3_this);
+    }
+  }
+
+  //h3d += 3;
+  std::cout<<h3d<<std::endl;
+
+  // fill supportive structure
+  std::map <std::string, std::string> fromto; // table of all flow directions
+  for (int j = 0; j < n; j++){
+    fromto[ifrom[j]] = ito[j];
+  }
+
+
+  //collect outer ring
+  std::vector<std::string> border_ring = cell_vecinity(start_cell, h3d);
+
+  int br_len = border_ring.size();
+
+  // go through all border cells
+  for (std::string br_cell : border_ring){
+    geotab[br_cell] = 'a';
+    if (fromto.find(br_cell) != fromto.end()){
+      std::cout<<br_cell<<std::endl;
+      std::string wohin = fromto[br_cell];  // what is 'to' cell for this bc
+
+      std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
+      while(true){
+        if (fromto.find(wohin) != fromto.end()){
+          // checking loops
+          control_loops[wohin]++;
+          bool flag = false;
+          for (auto const & loop_pair : control_loops){
+            // если посетили больше 1 раза, значит уже зациклились
+            if (loop_pair.second > 1){flag = true;}
+          }
+          if (flag){
+            break;
+          }else{
+            wohin = fromto[wohin];
+          }
+        }else{
+          break;
+        }
+      }
+
+      if (std::find(border_ring.begin(), border_ring.end(), wohin) != border_ring.end()){
+        geotab[br_cell] = wohin;
+      }
+
+    }
+  }
+  return geotab;
+}

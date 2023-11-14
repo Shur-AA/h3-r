@@ -5,6 +5,8 @@ library(tidyverse)
 library(akima)
 library(tidyr)
 library(readxl)
+library(RPostgres)
+
 
 options(scipen=999)
 rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_etopo60.tif"
@@ -76,9 +78,9 @@ hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
 rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
-for (h in 786:787){
+for (h in 845:852){
   print(h)
-  h = 785
+  h = 787
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
   plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
@@ -110,39 +112,62 @@ for (h in 786:787){
   tab_pnt = st_as_sf(tab, coords = c('x', 'y'), crs = 4326)
   tab1 = tab_pnt[pol,]
 
-  fd1 = h3:::flow_dir_extended(tab1$h3_ind, tab1$z, hex_bnd_cntr$ind[h], tab$h3_ind, tab$z)
+  #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
-  fd = h3::h3_flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
-
-  if (length(fd) > 2){
-    write.csv(fd, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-    fd = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-    colnames(fd) = c('from', 'to')
-    fa = h3::h3_flow_acc(fd$from, fd$to)
-    write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
-  }
+  # вычисляем направления стока по расширенному фрагменту
+  fd_ext = h3::flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
+  write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  colnames(fd_ext) = c('from', 'to')
+  # оставляем только те from-ячейки, которые есть в искомом фрагменте
+  fd = semi_join(fd_ext, tab1, by = c("from" = "h3_ind"))
+  write.csv(fd, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  fd = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  colnames(fd) = c('fid', 'from', 'to')
+  fa = h3::h3_flow_acc(fd$from, fd$to)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 }
 
 
 
-fd = read.csv("C:/Users/user/Downloads/corected.csv", sep = ';')
-
-fa = h3::h3_flow_acc(fd$from, fd$to)
-write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
-
-fd = read.csv("C:/Users/user/Downloads/gidro/fd786_1.csv", sep = ',')
-colnames(fd) = c('from', 'to')
-
-#tab = h3::h3_raster_to_hex(rast, start_h3_l)
-#c2 = "88ada22a35fffff"
-#c2 = "87ada22a0ffffff"
-#k = h3:::flow_dir(tab$h3_ind, tab$z, c2)
-
-#t = readxl::read_excel("C:/Users/user/Downloads/fd10.xlsx")
-k = h3:::flow_acc_stnd(fd$from, fd$to)
-write.csv(k, 'C:/Users/user/Downloads/fa7861_2.csv')
 
 
-#tab[is.na(tab)] = -9999
-tab = tab %>% filter(!is.na(tab$z))
+library(DBI)
+library(deckgl)
+#create connection object
+con <- dbConnect(RPostgres::Postgres(),
+                 user="postgres",
+                 password="17041996",
+                 host="localhost",
+                 port=5432,
+                 dbname="gidro")
+dbListTables(con)   #list all the tables
+cor = dbReadTable(con, "africa_fd")
+#dbWriteTable(con, name, new_tab, row.names=F, overwrite=F (append=T))
+
+
+
+#fatab = read.csv('C:/Users/user/Downloads/gidro/AfricaAcc.csv',
+ #                skip = 30000000, header = F, nrows = 80000000)
+fatab = select(tab, h3_ind, z)
+colnames(fatab) = c('h3ind', 'acc')
+
+properties <- list(
+  getHexagon = ~h3_ind,
+  getFillColor = JS("d => [255, (1 - d.z / 100) * 255, 0]"),
+  #getElevation = ~acc,
+  #elevationScale = 2,
+  getTooltip = "{{h3_ind}}: {{z}}"
+)
+
+deck <- deckgl(zoom = 4,
+               latitude=2,
+               longitude=20) %>%
+  add_h3_hexagon_layer(data = fatab, properties = properties) %>%
+  add_control("H3 Hexagon Layer") %>%
+  add_basemap()
+
+if (interactive()) deck
+
+
 

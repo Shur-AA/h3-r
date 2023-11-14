@@ -236,15 +236,15 @@ flow_dir <- function(inds, z, start_cell) {
     .Call(`_h3_flow_dir`, inds, z, start_cell)
 }
 
-flow_dir_extended <- function(inds, z, start_cell, inds_buf, z_buf) {
-    .Call(`_h3_flow_dir_extended`, inds, z, start_cell, inds_buf, z_buf)
-}
-
 flow_acc <- function(ifrom, ito) {
     .Call(`_h3_flow_acc`, ifrom, ito)
 }
 
 flow_acc_stnd <- function(ifrom, ito) {
     .Call(`_h3_flow_acc_stnd`, ifrom, ito)
+}
+
+fd_border_links <- function(h3ind, ifrom, ito, start_cell) {
+    .Call(`_h3_fd_border_links`, h3ind, ifrom, ito, start_cell)
 }
 
