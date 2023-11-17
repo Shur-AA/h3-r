@@ -115,7 +115,7 @@ for (h in 845:852){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   # вычисляем направления стока по расширенному фрагменту
-  fd_ext = h3::flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
+  fd_ext = h3::h3_flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
   write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   colnames(fd_ext) = c('from', 'to')

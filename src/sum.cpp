@@ -1640,12 +1640,16 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
 
   std::cout<<h3d<<std::endl;
 
+  std::vector<std::string> nancells;
+
   // map with indata without NaNs and inside ring - ДОЛГО!
   std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
   std::map <std::string, double> data_map;
   for (int i = 0; i < n; i++){
     if (isnan(z[i])){
-      continue;
+      data_map[inds[i]] = -100;
+      nancells.push_back(inds[i]);
+      //continue;
     }else{
       if (std::find(work_cells.begin(), work_cells.end(), inds[i]) != work_cells.end()){
         data_map[inds[i]] = z[i];
@@ -1706,9 +1710,11 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
     if (is_edge_cell && is_lowest){
       for (auto const & vec_ind : this_vecinity){
         if (data_map.find(vec_ind) != data_map.end()){ // if this cell have data
-          geotab[vec_ind] = low.second;
           marked.push_back(vec_ind);
-          marked.push_back(vec_ind);
+          // если ячейка из nodata, мы её не записываем
+          if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
+            geotab[vec_ind] = low.second;
+          }
         }
       }
     }else{
@@ -1724,7 +1730,9 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
           // add new cell in queue
           hq.push(make_pair(this_cell_value, vec_ind));
           marked.push_back(vec_ind);
-          geotab[vec_ind] = low.second;
+          if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
+            geotab[vec_ind] = low.second;
+          }
         }
       }
     }
