@@ -602,6 +602,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fd_experiment
+std::unordered_map <std::string, std::string> fd_experiment(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_fd_experiment(SEXP indsSEXP, SEXP zSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    rcpp_result_gen = Rcpp::wrap(fd_experiment(inds, z));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fill_depr
+std::map <std::string, double> fill_depr(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_fill_depr(SEXP indsSEXP, SEXP zSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    rcpp_result_gen = Rcpp::wrap(fill_depr(inds, z));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -653,6 +677,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_flow_acc", (DL_FUNC) &_h3_flow_acc, 2},
     {"_h3_flow_acc_stnd", (DL_FUNC) &_h3_flow_acc_stnd, 2},
     {"_h3_fd_border_links", (DL_FUNC) &_h3_fd_border_links, 4},
+    {"_h3_fd_experiment", (DL_FUNC) &_h3_fd_experiment, 2},
+    {"_h3_fill_depr", (DL_FUNC) &_h3_fill_depr, 2},
     {NULL, NULL, 0}
 };
 

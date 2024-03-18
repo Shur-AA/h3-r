@@ -9,7 +9,7 @@ library(RPostgres)
 
 
 options(scipen=999)
-rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_etopo60.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange_problem2.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
 
@@ -65,22 +65,23 @@ raster_to_bbox = function(raster_obj){
 
 initial_resolution = get_rast_cellarea(rast)
 start_h3_l = choose_h3_level(initial_resolution)
+#start_h3_l = 7
 
 
 # tiling raster
 rast_extent = raster_to_bbox(rast)
 hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
                                        rast_extent$lat_p,
-                                       2, start_h3_l) %>%
+                                       3, start_h3_l) %>%
   do.call(rbind, .) %>%
   as.data.frame()
 hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
 rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
-for (h in 845:852){
+for (h in c(5581)){
   print(h)
-  h = 787
+  h = 933
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
   plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
@@ -101,7 +102,7 @@ for (h in 845:852){
 
   # делаем буфер на 6 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 6000) %>%
+              st_buffer(dist = 50000) %>%
               st_transform(crs = 4326)
 
   # получаем широкий растр
@@ -114,20 +115,61 @@ for (h in 845:852){
 
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
-  # вычисляем направления стока по расширенному фрагменту
-  fd_ext = h3::h3_flow_dir(tab$h3_ind, tab$z, hex_bnd_cntr$ind[h])
+
+  fd_ext = h3:::fd_experiment(tab$h3_ind, tab$z)
   write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   colnames(fd_ext) = c('from', 'to')
-  # оставляем только те from-ячейки, которые есть в искомом фрагменте
-  fd = semi_join(fd_ext, tab1, by = c("from" = "h3_ind"))
-  write.csv(fd, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-  fd = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-  colnames(fd) = c('fid', 'from', 'to')
-  fa = h3::h3_flow_acc(fd$from, fd$to)
+  fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
+    filter(`x` > 80)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 }
 
+
+# Эксперимент с расширяющейся областью (от ячейки 1010 l3)
+start_tile = 1010
+hex_dem = h3::h3_raster_to_hex(rast, 8)
+hex_dem = select(hex_dem, -`x`, -`y`) %>%
+          na.omit()
+for (r in 101:150){
+  this_tile = h3:::cell_vecinity_circle(hex_bnd_cntr[start_tile,]$ind, r) %>%
+              data.frame() %>%
+              left_join(hex_dem, by = c("." = "h3_ind"))
+  colnames(this_tile) = c('h3_ind', 'z')
+
+
+  fd_ext = h3:::fd_experiment(this_tile$h3_ind, this_tile$z)
+  write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/expanding/', 'fd', r, '.csv', sep = ''))
+  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/expanding/', 'fd', r, '.csv', sep = ''))
+  colnames(fd_ext) = c('from', 'to')
+  fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/expanding/', 'fa', r, '.csv', sep = ''))
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/expanding/', 'fa', r, '.csv', sep = ''))
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/expanding/', 'fa', r, '.csv', sep = ''))
+}
+
+
+# Эксперимент со скользящим окном
+hex_dem = h3::h3_raster_to_hex(rast, 8)
+hex_dem = select(hex_dem, -`x`, -`y`) %>%
+  na.omit()
+for (c in hex_dem$h3_ind){
+  this_tile = h3:::cell_vecinity_circle(c, 10) %>%
+    data.frame() %>%
+    left_join(hex_dem, by = c("." = "h3_ind"))
+  colnames(this_tile) = c('h3_ind', 'z')
+
+  fd_ext = h3:::fd_experiment(this_tile$h3_ind, this_tile$z)
+  write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/walk/', 'fd_', c, '.csv', sep = ''))
+  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/walk/', 'fd_', c, '.csv', sep = ''))
+  colnames(fd_ext) = c('from', 'to')
+  fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/walk/', 'fa_', c, '.csv', sep = ''))
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/walk/', 'fa_', c, '.csv', sep = ''))
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/walk/', 'fa_', c, '.csv', sep = ''))
+}
 
 
 
@@ -150,24 +192,30 @@ cor = dbReadTable(con, "africa_fd")
 #fatab = read.csv('C:/Users/user/Downloads/gidro/AfricaAcc.csv',
  #                skip = 30000000, header = F, nrows = 80000000)
 fatab = select(tab, h3_ind, z)
-colnames(fatab) = c('h3ind', 'acc')
 
-properties <- list(
-  getHexagon = ~h3_ind,
-  getFillColor = JS("d => [255, (1 - d.z / 100) * 255, 0]"),
-  #getElevation = ~acc,
-  #elevationScale = 2,
-  getTooltip = "{{h3_ind}}: {{z}}"
-)
 
-deck <- deckgl(zoom = 4,
-               latitude=2,
-               longitude=20) %>%
-  add_h3_hexagon_layer(data = fatab, properties = properties) %>%
-  add_control("H3 Hexagon Layer") %>%
-  add_basemap()
+for (num in 1:10){
+  num = 150
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/expanding/', 'fa', num, '.csv', sep = '')) %>%
+      select(`X`, `x`)
+  colnames(fa) = c('h3_ind', 'z')
 
-if (interactive()) deck
+  properties <- list(
+    getHexagon = ~h3_ind,
+    getFillColor = JS("d => [0, (1 - d.z / 100) * 255, 250]"),
+    #getElevation = ~acc,
+    #elevationScale = 2,
+    getTooltip = "{{h3_ind}}: {{z}}"
+  )
 
+  deck <- deckgl(zoom = 7,
+                 latitude=-29.7899884,
+                 longitude=23.4763848) %>%
+    add_h3_hexagon_layer(data = hex_dem, properties = properties) %>%
+    add_control("Expand") %>%
+    add_basemap()
+
+  if (interactive()) deck
+}
 
 

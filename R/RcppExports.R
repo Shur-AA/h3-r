@@ -248,3 +248,11 @@ fd_border_links <- function(h3ind, ifrom, ito, start_cell) {
     .Call(`_h3_fd_border_links`, h3ind, ifrom, ito, start_cell)
 }
 
+fd_experiment <- function(inds, z) {
+    .Call(`_h3_fd_experiment`, inds, z)
+}
+
+fill_depr <- function(inds, z) {
+    .Call(`_h3_fill_depr`, inds, z)
+}
+

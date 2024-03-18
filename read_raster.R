@@ -71,11 +71,6 @@ start_h3_l = choose_h3_level(initial_resolution)
 
 
 
-
-
-
-
-
 tab1 %>% select(-x, -y) %>% write.csv('C:/Users/user/Downloads/nn.csv')
 
 

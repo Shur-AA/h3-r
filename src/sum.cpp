@@ -1678,7 +1678,7 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
   }
 
   for (auto const & mm : marked){
-  std::cout<<mm<<std::endl;
+    std::cout<<mm<<std::endl;
   }
 
   // go through queue
@@ -1706,26 +1706,26 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
       }
     }
 
-// если это устье, ничего не проверяем, а всех соседей сливаем в него
-    if (is_edge_cell && is_lowest){
-      for (auto const & vec_ind : this_vecinity){
-        if (data_map.find(vec_ind) != data_map.end()){ // if this cell have data
-          marked.push_back(vec_ind);
+    // если это устье, ничего не проверяем, а всех соседей сливаем в него
+   // if (is_edge_cell && is_lowest){
+    //  for (auto const & vec_ind : this_vecinity){
+      //  if (data_map.find(vec_ind) != data_map.end()){ // if this cell have data
+      //    marked.push_back(vec_ind);
           // если ячейка из nodata, мы её не записываем
-          if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
-            geotab[vec_ind] = low.second;
-          }
-        }
-      }
-    }else{
+      //    if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
+       //     geotab[vec_ind] = low.second;
+      //    }
+      //  }
+    //  }
+   // }else{
       // for cells in the vicinity check if they have not been marked
       for (auto const & vec_ind : this_vecinity){
         if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
             (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
           double this_cell_value = data_map[vec_ind];
           // check if sink
-            if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
-              this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+          if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
+            this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
           }
           // add new cell in queue
           hq.push(make_pair(this_cell_value, vec_ind));
@@ -1735,7 +1735,7 @@ std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
           }
         }
       }
-    }
+   // }
   }
   return geotab;
 }
@@ -1936,6 +1936,255 @@ std::map <std::string, std::string> fd_border_links(std::vector<std::string> & h
         geotab[br_cell] = wohin;
       }
 
+    }
+  }
+  return geotab;
+}
+
+
+
+
+
+// Calculates water flow directions and fills depressions
+// needs h3 indexes and corresponding heights as well as center cell
+
+// [[Rcpp::export]]
+std::unordered_map <std::string, std::string> fd_experiment(std::vector<std::string> & inds,
+                                                            std::vector<double> & z){
+  std::unordered_map <std::string, std::string> geotab; // resulting tab
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = inds.size();
+
+
+  std::vector<std::string> ecells;
+
+  std::unordered_map <std::string, double> data_map;
+
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      data_map[inds[i]] = -100;
+    }else{
+        data_map[inds[i]] = z[i];
+    }
+  }
+
+
+  // make min_heap priority queue
+  std::priority_queue<std::pair<double, std::string>,
+                      std::vector<std::pair<double, std::string>>,
+                      std::greater<std::pair<double, std::string>>> hq; // heights queue
+  std::vector<std::string> marked; // dublicate of hq to control elements
+
+
+
+  // searching for edged cells
+
+  for (auto const & acell : data_map){
+    // find all neighboring cells
+    if (acell.second == -100){
+      continue;
+    }
+    std::vector<std::string> this_vecinity = cell_vecinity(acell.first, 1);
+    std::unordered_map <std::string, double> vcnt_statistics;
+    vcnt_statistics["is_height"] = 0;
+    vcnt_statistics["is_nodata"] = 0;
+    vcnt_statistics["is_beyond"] = 0;
+    for (auto const & vec_ind : this_vecinity){
+      if (data_map.find(vec_ind) == data_map.end()){
+        vcnt_statistics["is_beyond"]++;
+      } else {
+        if (data_map[vec_ind] == -100){
+          vcnt_statistics["is_nodata"]++;
+        } else {
+          vcnt_statistics["is_height"]++;
+        }
+      }
+    }
+
+    int nbs_num = this_vecinity.size();
+    if (vcnt_statistics["is_height"] == nbs_num ||
+        vcnt_statistics["is_nodata"] == nbs_num ||
+        vcnt_statistics["is_beyond"] == nbs_num){
+      // exactly not edge
+      continue;
+    } else {
+      if (vcnt_statistics["is_height"] > 0 &&
+         (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0))
+         {
+        // that's edge cell
+        hq.push(make_pair(acell.second, acell.first));
+        marked.push_back(acell.first);
+        ecells.push_back(acell.first);
+         }
+    }
+  }
+
+
+  // go through queue
+  while(!hq.empty())
+  {
+    // get first cell in the queue - the lowest one
+    std::pair<double, std::string> low = hq.top();
+    hq.pop();
+
+    double pop_cell_value = data_map[low.second]; // height of active cell
+    // find all neighboring cells
+    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
+
+
+    // check if the cell is on the edge of DEM
+    bool is_edge_cell = false;
+    bool is_lowest = true;  // and the lowest among neighbors
+    for (auto const & vec_ind : this_vecinity){
+      if (std::find(ecells.begin(), ecells.end(), vec_ind) != ecells.end()){
+        is_edge_cell = true;
+      }
+    }
+
+    for (auto const & vec_ind : this_vecinity){
+      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
+          (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
+        double this_cell_value = data_map[vec_ind];
+        // check if sink
+        if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
+          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+        }
+        // add new cell in queue
+        hq.push(make_pair(this_cell_value, vec_ind));
+        marked.push_back(vec_ind);
+        if (data_map[vec_ind] != -100){
+          geotab[vec_ind] = low.second;
+        }
+      }
+    }
+  }
+  return geotab;
+}
+
+
+
+
+
+// Fills depressions
+// needs h3 indexes and corresponding heights as well as center cell
+
+// [[Rcpp::export]]
+std::map <std::string, double> fill_depr(std::vector<std::string> & inds,
+                                                  std::vector<double> & z){
+  std::map <std::string, double> geotab; // resulting tab
+  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = inds.size();
+
+
+  std::vector<std::string> ecells;
+
+  std::map <std::string, double> data_map;
+
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      data_map[inds[i]] = -100;
+    }else{
+      data_map[inds[i]] = z[i];
+    }
+  }
+
+
+  // make min_heap priority queue
+  std::priority_queue<std::pair<double, std::string>,
+                      std::vector<std::pair<double, std::string>>,
+                      std::greater<std::pair<double, std::string>>> hq; // heights queue
+  std::vector<std::string> marked; // dublicate of hq to control elements
+
+
+
+  // searching for edged cells
+
+  for (auto const & acell : data_map){
+    // find all neighboring cells
+    if (acell.second == -100){
+      continue;
+    }
+    std::vector<std::string> this_vecinity = cell_vecinity(acell.first, 1);
+    std::map <std::string, double> vcnt_statistics;
+    vcnt_statistics["is_height"] = 0;
+    vcnt_statistics["is_nodata"] = 0;
+    vcnt_statistics["is_beyond"] = 0;
+    for (auto const & vec_ind : this_vecinity){
+      if (data_map.find(vec_ind) == data_map.end()){
+        vcnt_statistics["is_beyond"]++;
+      } else {
+        if (data_map[vec_ind] == -100){
+          vcnt_statistics["is_nodata"]++;
+        } else {
+          vcnt_statistics["is_height"]++;
+        }
+      }
+    }
+
+    int nbs_num = this_vecinity.size();
+    if (vcnt_statistics["is_height"] == nbs_num ||
+        vcnt_statistics["is_nodata"] == nbs_num ||
+        vcnt_statistics["is_beyond"] == nbs_num){
+      // exactly not edge
+      continue;
+    } else {
+      if (vcnt_statistics["is_height"] > 0 &&
+          (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
+          data_map.find(acell.first) != data_map.end() && acell.second != -100)
+        // that's edge cell
+        hq.push(make_pair(acell.second, acell.first));
+      marked.push_back(acell.first);
+      ecells.push_back(acell.first);
+    }
+
+  }
+
+
+  // go through queue
+  while(!hq.empty())
+  {
+    // get first cell in the queue - the lowest one
+    std::pair<double, std::string> low = hq.top();
+    hq.pop();
+
+    double pop_cell_value = data_map[low.second]; // height of active cell
+    // find all neighboring cells
+    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
+
+
+
+
+    for (auto const & vec_ind : this_vecinity){
+      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
+          (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
+        double this_cell_value = data_map[vec_ind];
+        // check if sink
+        if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
+          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
+        }
+        // add new cell in queue
+        hq.push(make_pair(this_cell_value, vec_ind));
+        marked.push_back(vec_ind);
+        if (data_map[vec_ind] != -100){
+          geotab[vec_ind] = this_cell_value;
+        }
+      }
     }
   }
   return geotab;
