@@ -1,0 +1,40 @@
+ // searching for edged cells
+
+  std::vector<std::string> ecells;
+
+  for (auto const & acell : data_map){
+    // find all neighboring cells
+    if (acell.second == -100){
+      continue;
+    }
+    std::vector<std::string> this_vecinity = cell_vecinity(acell.first, 1);
+    std::map <std::string, double> vcnt_statistics;
+    vcnt_statistics["is_height"] = 0;
+    vcnt_statistics["is_nodata"] = 0;
+    vcnt_statistics["is_beyond"] = 0;
+    for (auto const & vec_ind : this_vecinity){
+      if (data_map.find(vec_ind) == data_map.end()){
+        vcnt_statistics["is_beyond"]++;
+      } else {
+        if (data_map[vec_ind] == -100){
+          vcnt_statistics["is_nodata"]++;
+        } else {
+          vcnt_statistics["is_height"]++;
+        }
+      }
+    }
+
+    int nbs_num = this_vecinity.size();
+    if (vcnt_statistics["is_height"] == nbs_num ||
+        vcnt_statistics["is_nodata"] == nbs_num ||
+        vcnt_statistics["is_beyond"] == nbs_num){
+      // exactly not edge
+      continue;
+    } else {
+      if (vcnt_statistics["is_height"] > 0 &&
+          (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
+          data_map.find(acell.first) != data_map.end() && acell.second != -100)
+        // that's edge cell
+        ecells.push_back(acell.first);
+    }
+  }

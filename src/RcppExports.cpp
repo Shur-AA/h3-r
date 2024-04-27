@@ -551,19 +551,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// flow_dir
-std::map <std::string, std::string> flow_dir(std::vector<std::string>& inds, std::vector<double>& z, std::string& start_cell);
-RcppExport SEXP _h3_flow_dir(SEXP indsSEXP, SEXP zSEXP, SEXP start_cellSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
-    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
-    Rcpp::traits::input_parameter< std::string& >::type start_cell(start_cellSEXP);
-    rcpp_result_gen = Rcpp::wrap(flow_dir(inds, z, start_cell));
-    return rcpp_result_gen;
-END_RCPP
-}
 // flow_acc
 std::map <std::string, double> flow_acc(std::vector<std::string>& ifrom, std::vector<std::string>& ito);
 RcppExport SEXP _h3_flow_acc(SEXP ifromSEXP, SEXP itoSEXP) {
@@ -602,27 +589,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// fd_experiment
-std::unordered_map <std::string, std::string> fd_experiment(std::vector<std::string>& inds, std::vector<double>& z);
-RcppExport SEXP _h3_fd_experiment(SEXP indsSEXP, SEXP zSEXP) {
+// flow_dir_pf
+std::unordered_map <std::string, std::string> flow_dir_pf(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_flow_dir_pf(SEXP indsSEXP, SEXP zSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
     Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
-    rcpp_result_gen = Rcpp::wrap(fd_experiment(inds, z));
+    rcpp_result_gen = Rcpp::wrap(flow_dir_pf(inds, z));
     return rcpp_result_gen;
 END_RCPP
 }
-// fill_depr
-std::map <std::string, double> fill_depr(std::vector<std::string>& inds, std::vector<double>& z);
-RcppExport SEXP _h3_fill_depr(SEXP indsSEXP, SEXP zSEXP) {
+// fill_depr_Planchon
+std::map <std::string, double> fill_depr_Planchon(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_fill_depr_Planchon(SEXP indsSEXP, SEXP zSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
     Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
-    rcpp_result_gen = Rcpp::wrap(fill_depr(inds, z));
+    rcpp_result_gen = Rcpp::wrap(fill_depr_Planchon(inds, z));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fill_depr_jd
+std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::string>& inds, std::vector<double>& z);
+RcppExport SEXP _h3_fill_depr_jd(SEXP indsSEXP, SEXP zSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type inds(indsSEXP);
+    Rcpp::traits::input_parameter< std::vector<double>& >::type z(zSEXP);
+    rcpp_result_gen = Rcpp::wrap(fill_depr_jd(inds, z));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -673,12 +672,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_cell_azimuth", (DL_FUNC) &_h3_cell_azimuth, 1},
     {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
     {"_h3_drainage", (DL_FUNC) &_h3_drainage, 2},
-    {"_h3_flow_dir", (DL_FUNC) &_h3_flow_dir, 3},
     {"_h3_flow_acc", (DL_FUNC) &_h3_flow_acc, 2},
     {"_h3_flow_acc_stnd", (DL_FUNC) &_h3_flow_acc_stnd, 2},
     {"_h3_fd_border_links", (DL_FUNC) &_h3_fd_border_links, 4},
-    {"_h3_fd_experiment", (DL_FUNC) &_h3_fd_experiment, 2},
-    {"_h3_fill_depr", (DL_FUNC) &_h3_fill_depr, 2},
+    {"_h3_flow_dir_pf", (DL_FUNC) &_h3_flow_dir_pf, 2},
+    {"_h3_fill_depr_Planchon", (DL_FUNC) &_h3_fill_depr_Planchon, 2},
+    {"_h3_fill_depr_jd", (DL_FUNC) &_h3_fill_depr_jd, 2},
     {NULL, NULL, 0}
 };
 

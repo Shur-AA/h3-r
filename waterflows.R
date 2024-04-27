@@ -9,7 +9,7 @@ library(RPostgres)
 
 
 options(scipen=999)
-rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange_problem2.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
 
@@ -25,6 +25,7 @@ get_rast_cellarea = function(raster_obj){
   mean_lon = ((st_bbox(raster_obj)[1] + st_bbox(raster_obj)[3]) / 2)[[1]]
   metr_crs = st_crs(as.numeric(determine_epsg_code(mean_lon)))
   new_rast = st_transform(raster_obj, metr_crs)
+  #new_rast = raster_obj
   # dimension in meters on x and y
   x_dim = ((st_bbox(new_rast)[3] - st_bbox(new_rast)[1]) / dim(new_rast)['x'])[[1]]
   y_dim = ((st_bbox(new_rast)[4] - st_bbox(new_rast)[2]) / dim(new_rast)['y'])[[1]]
@@ -79,9 +80,9 @@ hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
 rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
-for (h in c(5581)){
+for (h in c(5, 7, 6)){
   print(h)
-  h = 933
+  h = 5
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
   plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
@@ -100,13 +101,18 @@ for (h in c(5581)){
   pol = st_polygon(coords) %>% st_sfc()
   st_crs(pol) = st_crs(4326)
 
-  # делаем буфер на 6 км, чтобы тайлы были внахлёст
+  # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
               st_buffer(dist = 50000) %>%
               st_transform(crs = 4326)
 
+
+
   # получаем широкий растр
   tile = st_crop(rast, pol_plus)
+
+
+  rast = st_transform(rast, 4326)
   # конвертируем его в сетку
   tab = h3::h3_raster_to_hex(tile, start_h3_l)
   # выбираем исходным шестиугольником только те ячейки, чьи узлы в него попадают
@@ -115,15 +121,22 @@ for (h in c(5581)){
 
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
+  fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fdjd', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fdem', h, '.csv', sep = ''))
+  colnames(fdem) = c('h3_ind', 'z')
+
 
   fd_ext = h3:::fd_experiment(tab$h3_ind, tab$z)
+  h = '_09'
+  #fd_ext = h3:::drainage(fdem$h3_ind, fdem$z)
   write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   colnames(fd_ext) = c('from', 'to')
   fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
   fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
-    filter(`x` > 80)
+    filter(`x` > 0)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 }
 

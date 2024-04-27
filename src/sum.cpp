@@ -9,7 +9,7 @@
 #include <math.h>
 #include <queue>
 #include <bits/stdc++.h>
-
+#include <iostream>
 
 using namespace Rcpp;
 
@@ -311,6 +311,23 @@ double expit(double x, int power){
     result = result * x;
   }
   return result;
+}
+
+
+
+// finds the index of the element's first occurrence in double(!) vector
+int el_ind_indouble_vect(const std::vector<double> & v,
+                         const double key){
+  int i = 0;
+  int ind = -1;
+  for (auto const & element : v){
+    if (element == key){
+      ind = i;
+      break;
+    }else{i++;}
+  }
+
+  return ind;
 }
 
 
@@ -1554,7 +1571,7 @@ std::map <std::string, std::vector<double>> gradient_aspect(std::vector<std::str
 
 
 
-// Calculates drainage in focal window
+// Calculates drainage in focal window D6
 
 // [[Rcpp::export]]
 std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
@@ -1569,10 +1586,18 @@ std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
     std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
   int n = inds.size();
-  std::map <std::string, double> temp_map;
+
+  std::unordered_map <std::string, double> temp_map;
+
   for (int i = 0; i < n; i++){
-    temp_map[inds[i]] = z[i];
+    if (isnan(z[i])){
+      temp_map[inds[i]] = -100;
+    }else{
+      temp_map[inds[i]] = z[i];
+    }
   }
+
+
 
   for (int i = 0; i < n; i++){
     std::string this_ind = inds[i]; // current cell
@@ -1581,7 +1606,7 @@ std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
     // get values in focal window
     // assume that order in this_vecinity = in initial_vals
     std::string desc_slope_hex = this_ind;  // h3 index of the cell with descent slope
-    double desc_slope_val = 0;  // h difference with the cell with descent slope
+    double desc_slope_val = -1000;  // h difference with the cell with descent slope
     for (auto const & vec_ind : this_vecinity){
       double this_value = temp_map[vec_ind];
       if (center_value - this_value > desc_slope_val){
@@ -1594,151 +1619,6 @@ std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
   return geotab;
 }
 
-
-
-// Calculates water flow directions and fills depressions
-// needs h3 indexes and corresponding heights as well as center cell
-
-// [[Rcpp::export]]
-std::map <std::string, std::string> flow_dir(std::vector<std::string> & inds,
-                                             std::vector<double> & z,
-                                             std::string & start_cell){
-  std::map <std::string, std::string> geotab; // resulting tab
-  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
-  try{
-    if (inds.size() != z.size()){
-      throw 2; // not equal lengths exception
-    }}
-  catch(int x){
-    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
-  }
-
-  int n = inds.size();
-
-  std::vector <std::string> ind_vect; // initial indexes except those with NaNs
-
-  // fill supportive structures
-  for (int i = 0; i < n; i++){
-    if (isnan(z[i])){
-      continue;
-    }else{
-      ind_vect.push_back(inds[i]);
-    }
-  }
-
-  // define ring size
-  // make all pairs with start cell and find max distance
-  int nn = ind_vect.size();
-  H3Index h3_from = stringToH3(start_cell.std::string::c_str());
-  int h3d = 0;  // ring radius
-  for (int l = 0; l < nn; l++){
-    H3Index h3_this = stringToH3(ind_vect[l].std::string::c_str());
-    if (h3Distance(h3_from, h3_this) > h3d){
-      h3d = h3Distance(h3_from, h3_this);
-    }
-  }
-
-  std::cout<<h3d<<std::endl;
-
-  std::vector<std::string> nancells;
-
-  // map with indata without NaNs and inside ring - ДОЛГО!
-  std::vector<std::string> work_cells = cell_vecinity_circle(start_cell, h3d);
-  std::map <std::string, double> data_map;
-  for (int i = 0; i < n; i++){
-    if (isnan(z[i])){
-      data_map[inds[i]] = -100;
-      nancells.push_back(inds[i]);
-      //continue;
-    }else{
-      if (std::find(work_cells.begin(), work_cells.end(), inds[i]) != work_cells.end()){
-        data_map[inds[i]] = z[i];
-      }
-    }
-  }
-
-
-  // make min_heap priority queue
-  std::priority_queue<std::pair<double, std::string>,
-                      std::vector<std::pair<double, std::string>>,
-                      std::greater<std::pair<double, std::string>>> hq; // heights queue
-  std::vector<std::string> marked; // dublicate of hq to control elements
-
-
-
-  //collect first ring and pq
-  std::vector<std::string> border_ring = cell_vecinity(start_cell, h3d);
-  for (auto const & bord_ind : border_ring){
-    if (data_map.find(bord_ind) == data_map.end()) {  // check if ring cells have data
-      continue;
-    } else {
-      hq.push(make_pair(data_map[bord_ind], bord_ind));
-      marked.push_back(bord_ind);
-    }
-  }
-
-  for (auto const & mm : marked){
-    std::cout<<mm<<std::endl;
-  }
-
-  // go through queue
-  while(!hq.empty())
-  {
-    // get first cell in the queue - the lowest one
-    std::pair<double, std::string> low = hq.top();
-    hq.pop();
-
-    double pop_cell_value = data_map[low.second]; // height of active cell
-    // find all neighboring cells
-    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
-
-
-    // check if the cell is on the edge of DEM
-    bool is_edge_cell = false;
-    bool is_lowest = true;  // and the lowest among neighbors
-    for (auto const & vec_ind : this_vecinity){
-      if (data_map.find(vec_ind) == data_map.end()){
-        is_edge_cell = true;
-      } else{
-        if (pop_cell_value - data_map[vec_ind] > 0){
-          is_lowest = false;
-        }
-      }
-    }
-
-    // если это устье, ничего не проверяем, а всех соседей сливаем в него
-   // if (is_edge_cell && is_lowest){
-    //  for (auto const & vec_ind : this_vecinity){
-      //  if (data_map.find(vec_ind) != data_map.end()){ // if this cell have data
-      //    marked.push_back(vec_ind);
-          // если ячейка из nodata, мы её не записываем
-      //    if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
-       //     geotab[vec_ind] = low.second;
-      //    }
-      //  }
-    //  }
-   // }else{
-      // for cells in the vicinity check if they have not been marked
-      for (auto const & vec_ind : this_vecinity){
-        if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
-            (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
-          double this_cell_value = data_map[vec_ind];
-          // check if sink
-          if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
-            this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
-          }
-          // add new cell in queue
-          hq.push(make_pair(this_cell_value, vec_ind));
-          marked.push_back(vec_ind);
-          if ((std::find(nancells.begin(), nancells.end(), vec_ind) == nancells.end())){
-            geotab[vec_ind] = low.second;
-          }
-        }
-      }
-   // }
-  }
-  return geotab;
-}
 
 
 
@@ -1865,8 +1745,6 @@ std::map <std::string, int> flow_acc_stnd(std::vector<std::string> & ifrom,
 
 
 
-
-
 // Calculates border cells' links based on flow direction table (from-to)
 
 
@@ -1947,9 +1825,10 @@ std::map <std::string, std::string> fd_border_links(std::vector<std::string> & h
 
 // Calculates water flow directions and fills depressions
 // needs h3 indexes and corresponding heights as well as center cell
+// priority-flood algorithm
 
 // [[Rcpp::export]]
-std::unordered_map <std::string, std::string> fd_experiment(std::vector<std::string> & inds,
+std::unordered_map <std::string, std::string> flow_dir_pf(std::vector<std::string> & inds,
                                                             std::vector<double> & z){
   std::unordered_map <std::string, std::string> geotab; // resulting tab
   int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
@@ -2075,12 +1954,13 @@ std::unordered_map <std::string, std::string> fd_experiment(std::vector<std::str
 
 // Fills depressions
 // needs h3 indexes and corresponding heights as well as center cell
+// Planchon, O., and Darboux, F. 2002. "A fast, simple and versatile
+// algorithm to fill the depressions of digital elevation models."
+// Catena 46(2): 159–176.
 
 // [[Rcpp::export]]
-std::map <std::string, double> fill_depr(std::vector<std::string> & inds,
+std::map <std::string, double> fill_depr_Planchon(std::vector<std::string> & inds,
                                                   std::vector<double> & z){
-  std::map <std::string, double> geotab; // resulting tab
-  int h3_level = h3GetResolution(stringToH3(inds[0].std::string::c_str()));
   try{
     if (inds.size() != z.size()){
       throw 2; // not equal lengths exception
@@ -2090,9 +1970,6 @@ std::map <std::string, double> fill_depr(std::vector<std::string> & inds,
   }
 
   int n = inds.size();
-
-
-  std::vector<std::string> ecells;
 
   std::map <std::string, double> data_map;
 
@@ -2105,15 +1982,9 @@ std::map <std::string, double> fill_depr(std::vector<std::string> & inds,
   }
 
 
-  // make min_heap priority queue
-  std::priority_queue<std::pair<double, std::string>,
-                      std::vector<std::pair<double, std::string>>,
-                      std::greater<std::pair<double, std::string>>> hq; // heights queue
-  std::vector<std::string> marked; // dublicate of hq to control elements
-
-
-
   // searching for edged cells
+
+  std::vector<std::string> ecells;
 
   for (auto const & acell : data_map){
     // find all neighboring cells
@@ -2148,44 +2019,312 @@ std::map <std::string, double> fill_depr(std::vector<std::string> & inds,
           (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
           data_map.find(acell.first) != data_map.end() && acell.second != -100)
         // that's edge cell
-        hq.push(make_pair(acell.second, acell.first));
-      marked.push_back(acell.first);
       ecells.push_back(acell.first);
     }
 
   }
 
+  std::map <std::string, double> w_surface;
 
-  // go through queue
-  while(!hq.empty())
-  {
-    // get first cell in the queue - the lowest one
-    std::pair<double, std::string> low = hq.top();
-    hq.pop();
-
-    double pop_cell_value = data_map[low.second]; // height of active cell
-    // find all neighboring cells
-    std::vector<std::string> this_vecinity = cell_vecinity(low.second, 1);
+  for (auto const & acell : data_map){
+    if (std::find(ecells.begin(), ecells.end(), acell.first) != ecells.end()){
+      w_surface[acell.first] = acell.second;
+    } else{
+      w_surface[acell.first] = 10000.5;
+    }
+  }
 
 
+  while (true){
 
+    bool something_done = false;
+    for (auto const & acell : data_map){
 
-    for (auto const & vec_ind : this_vecinity){
-      if ((std::find(marked.begin(), marked.end(), vec_ind) == marked.end()) &&
-          (data_map.find(vec_ind) != data_map.end())){ // if not in marked list and if this cell have data
-        double this_cell_value = data_map[vec_ind];
-        // check if sink
-        if ((pop_cell_value - this_cell_value >= 0)){  // не допускаем равных значений
-          this_cell_value = pop_cell_value + calc_addition(low.second, vec_ind);
-        }
-        // add new cell in queue
-        hq.push(make_pair(this_cell_value, vec_ind));
-        marked.push_back(vec_ind);
-        if (data_map[vec_ind] != -100){
-          geotab[vec_ind] = this_cell_value;
+      if (std::find(ecells.begin(), ecells.end(), acell.first) == ecells.end()){
+
+        double center_value = acell.second; // Z(c)
+        double w_c = w_surface[acell.first];  // W(c)
+        std::vector<std::string> this_vecinity = cell_vecinity(acell.first, 1); // current cell immediate neighbors
+
+        if (w_c > center_value){
+          // get values in focal window
+          for (auto const & vec_ind : this_vecinity){
+            double this_value_start = data_map[vec_ind];  // initial value Z(n)
+            double this_value_interm = w_surface[vec_ind];  // intermediate value W(n)
+            double this_epsilon = calc_addition(acell.first, vec_ind);
+
+            if (center_value >= this_value_interm + this_epsilon){
+              w_surface[acell.first] = center_value;
+              something_done = true;
+            }
+            if (w_c > this_value_interm + this_epsilon){
+              w_surface[acell.first] = this_value_interm + this_epsilon;
+              something_done = true;
+            }
+          }
         }
       }
     }
+    if (something_done == false){
+      break;
+    }
   }
-  return geotab;
+  return w_surface;
 }
+
+
+
+
+// Calculates water flow directions and fills depressions
+// needs h3 indexes and corresponding heights
+// Jenson-Domingue
+
+// [[Rcpp::export]]
+std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::string> & inds,
+                                                           std::vector<double> & z){
+  std::unordered_map <std::string, double> geotab; // resulting tab of heights
+  try{
+    if (inds.size() != z.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = inds.size();
+
+  std::unordered_map <std::string, double> data_map;
+
+  for (int i = 0; i < n; i++){
+    if (isnan(z[i])){
+      data_map[inds[i]] = -100;
+    }else{
+      data_map[inds[i]] = z[i];
+    }
+  }
+
+
+  // filling single-cell depressions (Step 1)
+  // and searching for edged cells (Step 2.1)
+  std::vector<std::string> ecells;
+  for (auto const & acell : data_map){
+    double center_value = acell.second;
+    std::vector<std::string> this_vecinity = cell_vecinity(acell.first, 1); // current cell immediate neighbors
+    int sinking_rate = 0;  // how many cells are higher than center
+    // in order not to add 0s in data map we set big value
+    double minh = 10000;  // searching for min h through vicinity
+    // structure for edge searching
+    std::map <std::string, double> vcnt_statistics;
+    vcnt_statistics["is_height"] = 0;
+    vcnt_statistics["is_nodata"] = 0;
+    vcnt_statistics["is_beyond"] = 0;
+
+    for (auto const & vec_ind : this_vecinity){
+
+         if (center_value != -100){
+
+             if (data_map.find(vec_ind) == data_map.end()){
+               vcnt_statistics["is_beyond"]++;
+             } else {
+
+               double this_value = data_map[vec_ind];
+               if (center_value - this_value < 0){
+                 sinking_rate++;
+               }
+               if (this_value < minh){
+                 minh = this_value;
+               }
+
+
+               if (data_map[vec_ind] == -100){
+                 vcnt_statistics["is_nodata"]++;
+               } else {
+                 vcnt_statistics["is_height"]++;
+               }
+             }
+         }
+    }
+
+    if (sinking_rate == this_vecinity.size()){
+       geotab[acell.first] = minh;
+    }else{
+       geotab[acell.first] = center_value;
+         }
+
+    int nbs_num = this_vecinity.size();
+    if (vcnt_statistics["is_height"] == nbs_num ||
+        vcnt_statistics["is_nodata"] == nbs_num ||
+        vcnt_statistics["is_beyond"] == nbs_num){
+     // exactly not edge
+        continue;
+    }else{
+    if (vcnt_statistics["is_height"] > 0 &&
+         (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
+         data_map.find(acell.first) != data_map.end() && acell.second != -100){
+       // that's edge cell
+       ecells.push_back(acell.first);
+    }
+         }
+  }
+
+
+
+
+  // computing flow directions (Step 2)
+  std::unordered_map <std::string, std::string> fdtab; // tab of flow directions
+  std::vector<std::string> need_postprocess;
+  for (auto const & acell : geotab){
+    // if edged cell - write it and not analyse
+    if (std::find(ecells.begin(), ecells.end(), acell.first) != ecells.end()){
+      fdtab[acell.first] = "edge";
+    }else{
+      // get the cell's neighbors
+      std::vector<std::string> this_vicinity = cell_vecinity(acell.first, 1);
+      // calculate drops with neighbors
+      std::vector<double> drops;
+      double center_value = acell.second;  // current cell height
+      // go via neighbors
+      for (auto const & vic_ind : this_vicinity){
+        double this_value = geotab[vic_ind];
+        double this_drop = center_value - this_value;
+        drops.push_back(this_drop);
+      }
+      // examine the drop values
+      double max_drop = *max_element(std::begin(drops),
+                                     std::end(drops));
+      // check for 3a condition
+      if (max_drop < 0){
+        fdtab[acell.first] = "undef";
+      }
+
+      // check for 3b condition
+      int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
+      if (max_drop >= 0 && maxes_num == 1){
+        fdtab[acell.first] = this_vicinity[el_ind_indouble_vect(drops, max_drop)];
+      }
+
+      // check for 3c condition
+      // NB: we don't use table loop-up, all is arbitrary and this may cause loops
+      if (max_drop > 0 && maxes_num > 1){
+        fdtab[acell.first] = this_vicinity[el_ind_indouble_vect(drops, max_drop)];
+      }
+
+      // check for 3d condition
+      if (max_drop == 0 && maxes_num > 1){
+        fdtab[acell.first] = "zero_drops";
+        need_postprocess.push_back(acell.first);
+      }
+    }
+  }
+
+  // Step 2.4
+
+  // if there are cells with no direction and they are not edged
+  // (have more than one neighbor with equal height)
+  if (need_postprocess.size() > 0){
+    for (auto const & npcell : need_postprocess){
+      // get the cell's neighbors
+      std::vector<std::string> this_vicinity = cell_vecinity(npcell, 1);
+      // calculate drops with neighbors
+      std::vector<double> drops;
+      double center_value = geotab[npcell];  // current cell height
+      // go via neighbors
+      for (auto const & vic_ind : this_vicinity){
+        double this_value = geotab[vic_ind];
+        double this_drop = center_value - this_value;
+        drops.push_back(this_drop);
+      }
+      // examine the drop values
+      double max_drop = *max_element(std::begin(drops),
+                                     std::end(drops));
+      int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
+
+      // recheck condition of zero drop and
+      // assigning direction in ambiguous situation
+      bool resolve_zd_problem = false;
+      if (max_drop == 0 && maxes_num > 1){
+
+          int i = 0;
+          for (auto const & element : drops){
+            if (element == max_drop){
+              std::string sosed_index = this_vicinity[i];
+              // if the neighbor has flow dir and it's not into this npcell
+              if (fdtab.find(sosed_index) != fdtab.end()){
+                if (fdtab[sosed_index] != npcell &&
+                    fdtab[sosed_index] != "zero_drops" &&
+                    fdtab[sosed_index] != "undef"){
+                      fdtab[npcell] = sosed_index;
+                      resolve_zd_problem = true;
+                      break;
+                }
+              }
+            }
+            i++;
+          }
+        std::cout<<resolve_zd_problem<<std::endl;
+      }else{
+        std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
+      }
+    }
+  }
+
+  // labeling watersheds (Step 3)
+
+  int w = 0; // number (label) of a watershed
+  std::unordered_map <std::string, int> watersheds;
+  std::vector<std::string> poor_points;
+  // go through all 'from' cells in current fd table
+  for (auto const & dir_pair : fdtab){
+
+    // has current cell exit of type 1 (clear case)?
+    // if no exit
+    if (dir_pair.second == "edge" ||
+        dir_pair.second == "zero_drops" ||
+        dir_pair.second == "undef"){
+      // check if it in poor points list
+      if (std::find(poor_points.begin(), poor_points.end(),
+                 dir_pair.first) != poor_points.end()){
+        // if it is already in poor points list
+        int label = watersheds[dir_pair.first];
+      }else{
+        // if it is not in poor points list yet
+        poor_points.push_back(dir_pair.first);
+        watersheds[dir_pair.first] = ++w;
+
+
+      }
+    }
+
+    std::string ind = dir_pair.second; // where to flow
+    std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
+    while(true){
+      if (fromto.find(ind) != fromto.end()){
+        // checking loops
+        control_loops[ind]++;
+        bool flag = false;
+        for (auto const & loop_pair : control_loops){
+          // если посетили больше 1 раза, значит уже зациклились
+          if (loop_pair.second > 1){flag = true;}
+        }
+        if (flag){
+          break;
+        }else{
+          ind = fromto[ind];
+          geotab[ind]++;
+        }
+      }else{
+        break;
+      }
+    }
+  }
+
+
+
+
+return fdtab;
+}
+
+
+
+
+

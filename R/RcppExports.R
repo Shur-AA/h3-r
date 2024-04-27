@@ -232,10 +232,6 @@ drainage <- function(inds, z) {
     .Call(`_h3_drainage`, inds, z)
 }
 
-flow_dir <- function(inds, z, start_cell) {
-    .Call(`_h3_flow_dir`, inds, z, start_cell)
-}
-
 flow_acc <- function(ifrom, ito) {
     .Call(`_h3_flow_acc`, ifrom, ito)
 }
@@ -248,11 +244,15 @@ fd_border_links <- function(h3ind, ifrom, ito, start_cell) {
     .Call(`_h3_fd_border_links`, h3ind, ifrom, ito, start_cell)
 }
 
-fd_experiment <- function(inds, z) {
-    .Call(`_h3_fd_experiment`, inds, z)
+flow_dir_pf <- function(inds, z) {
+    .Call(`_h3_flow_dir_pf`, inds, z)
 }
 
-fill_depr <- function(inds, z) {
-    .Call(`_h3_fill_depr`, inds, z)
+fill_depr_Planchon <- function(inds, z) {
+    .Call(`_h3_fill_depr_Planchon`, inds, z)
+}
+
+fill_depr_jd <- function(inds, z) {
+    .Call(`_h3_fill_depr_jd`, inds, z)
 }
 
