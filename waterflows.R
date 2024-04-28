@@ -122,7 +122,7 @@ for (h in c(5, 7, 6)){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fdjd', h, '.csv', sep = ''))
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'wtshd', h, '.csv', sep = ''))
   fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fdem', h, '.csv', sep = ''))
   colnames(fdem) = c('h3_ind', 'z')
 
@@ -231,4 +231,86 @@ for (num in 1:10){
   if (interactive()) deck
 }
 
+
+
+
+
+// labeling watersheds (Step 3)
+
+int w = 0; // number (label) of a watershed
+std::unordered_map <std::string, int> watersheds;
+std::vector<std::string> poor_points;
+// go through all 'from' cells in current fd table
+for (auto const & dir_pair : fdtab){
+
+  int label = w;
+
+  std::cout<<label<<std::endl;
+  // has current cell exit of type 1 (clear case)?
+    // if no exit
+  if (dir_pair.second == "edge" ||
+      dir_pair.second == "zero_drops" ||
+      dir_pair.second == "undef"){
+    // check if it is in poor points list
+    if (std::find(poor_points.begin(), poor_points.end(),
+                  dir_pair.first) != poor_points.end()){
+      // if it is already in poor points list
+      // take corresponding watershed label
+      label = watersheds[dir_pair.first];
+    }else{
+      // if it is not in poor points list yet
+      poor_points.push_back(dir_pair.first);
+      watersheds[dir_pair.first] = ++w;
+    }
+  }else{
+    std::vector<std::string> this_path; // path to poor point
+    this_path.push_back(dir_pair.first);
+    std::string toind = dir_pair.second; // where to flow
+    std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
+    while(true){
+      if (fdtab.find(toind) != fdtab.end()){
+        this_path.push_back(toind);
+        // checking loops
+        control_loops[toind]++;
+        bool flag = false;
+        for (auto const & loop_pair : control_loops){
+          // если посетили больше 1 раза, значит уже зациклились
+          if (loop_pair.second > 1){flag = true;}
+        }
+        if (flag){
+          std::cout<<"There was a loop!"<<std::endl;
+          break;
+        }else{
+          toind = fdtab[toind];
+        }
+      }else{
+        if (dir_pair.second != "edge" ||
+            dir_pair.second != "zero_drops" ||
+            dir_pair.second != "undef"){
+          this_path.push_back(toind);
+        }
+        break;
+      }
+    }
+    // now we have list with path ending in some poor point
+    // check if the end is in the poor points list
+    int pp_len = this_path.size();
+    if (pp_len > 0){
+      if (std::find(poor_points.begin(), poor_points.end(),
+                    this_path[pp_len - 1]) != poor_points.end()){
+        // if it is already in poor points list
+        // take corresponding watershed label
+        label = watersheds[this_path[pp_len - 1]];
+      }else{
+        // if it is not in poor points list yet
+        poor_points.push_back(this_path[pp_len - 1]);
+        watersheds[this_path[pp_len - 1]] = ++w;
+        label = w;
+      }
+      for (int i; i < (pp_len - 1); i++){
+        watersheds[poor_points[i]] = label;
+      }
+    }
+  }
+}
 
