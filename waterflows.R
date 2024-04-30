@@ -122,7 +122,7 @@ for (h in c(5, 7, 6)){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'wtshd', h, '.csv', sep = ''))
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'pp', h, '.csv', sep = ''))
   fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fdem', h, '.csv', sep = ''))
   colnames(fdem) = c('h3_ind', 'z')
 
@@ -314,3 +314,18 @@ for (auto const & dir_pair : fdtab){
   }
 }
 
+
+
+
+
+// check if it is in poor points list
+if (std::find(poor_points.begin(), poor_points.end(),
+              dir_pair.first) != poor_points.end()){
+  // if it is already in poor points list
+  // take corresponding watershed label
+  label = watersheds[dir_pair.first];
+}else{
+  // if it is not in poor points list yet
+  poor_points.push_back(dir_pair.first);
+  watersheds[dir_pair.first] = ++w;
+}

@@ -2261,12 +2261,13 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
             }
             i++;
           }
-        std::cout<<resolve_zd_problem<<std::endl;
+        std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
       }else{
         std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
       }
     }
   }
+
 
   // labeling watersheds (Step 3)
 
@@ -2283,27 +2284,16 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
     if (dir_pair.second == "edge" ||
         dir_pair.second == "zero_drops" ||
         dir_pair.second == "undef"){
-      // check if it is in poor points list
-      if (std::find(poor_points.begin(), poor_points.end(),
-                 dir_pair.first) != poor_points.end()){
-        // if it is already in poor points list
-        // take corresponding watershed label
-        label = watersheds[dir_pair.first];
-      }else{
-        // if it is not in poor points list yet
-        poor_points.push_back(dir_pair.first);
-        watersheds[dir_pair.first] = ++w;
-      }
-    }else{
+      continue;
 
+    }else{
           std::vector<std::string> this_path; // path to poor point
           this_path.push_back(dir_pair.first);
           std::string toind = dir_pair.second; // where to flow
           std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
           while(true){
             if (fdtab.find(toind) != fdtab.end()){
-                      this_path.push_back(toind);
-                      //std::cout<<toind<<std::endl;
+
                       // checking loops
                       control_loops[toind]++;
                       bool flag = false;
@@ -2312,62 +2302,58 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
                         if (loop_pair.second > 1){flag = true;}
                       }
                       if (flag){
-                        //std::cout<<"There was a loop!"<<std::endl;
                         break;
                       }else{
+                        this_path.push_back(toind);
                         toind = fdtab[toind];
                       }
             }else{
-              if (dir_pair.second != "edge" ||
-                  dir_pair.second != "zero_drops" ||
-                  dir_pair.second != "undef"){
+              if (toind != "edge" &&
+                  toind != "zero_drops" &&
+                  toind != "undef"){
                 this_path.push_back(toind);
               }
-              //std::cout<<"A path finished"<<std::endl;
               break;
             }
           }
 
-
           // now we have list with path ending in some poor point
           // check if the end is in the poor points list
           int pp_len = this_path.size();
-          std::cout<<pp_len<<std::endl;
           if (pp_len > 0){
             std::string last_added = this_path[pp_len - 1];
+
+            // check if we have reverse pair of poor points
+            if (fdtab.find(last_added) != fdtab.end()){
+              if (fdtab.find(fdtab[last_added]) != fdtab.end()){
+                if (fdtab[fdtab[last_added]] == last_added){
+                  if (std::find(poor_points.begin(), poor_points.end(),
+                                fdtab[last_added]) != poor_points.end()){
+                    poor_points.push_back(last_added);
+                    label = watersheds[fdtab[last_added]];
+                    watersheds[last_added] = label;
+                  }
+                }
+              }
+            }
+
             if (std::find(poor_points.begin(), poor_points.end(),
                           last_added) != poor_points.end()){
               // if it is already in poor points list
               // take corresponding watershed label
               label = watersheds[last_added];
-              std::cout<<"Existed label is:"<<label<<std::endl;
             }else{
                   // if it is not in poor points list yet
                   poor_points.push_back(last_added);
-                  watersheds[last_added] = ++w;
-                  label = w;
-                  std::cout<<"Current label is:"<<label<<std::endl;
+                  watersheds[last_added] = w++;
+                  label = w - 1;
             }
-
-
             for (int i = 0; i < (pp_len - 1); i++){
-              //std::cout<<"Set to cell:"<<this_path[i]<<"mark:"<<label<<std::endl;
               watersheds[this_path[i]] = label;
             }
-
-
           }
-
-
-
-
-
-
     }
   }
-
-
-
 
 return watersheds;
 }
