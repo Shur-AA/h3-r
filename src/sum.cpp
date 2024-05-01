@@ -331,6 +331,55 @@ int el_ind_indouble_vect(const std::vector<double> & v,
 }
 
 
+// structure for table that stores watersheds metadata
+struct pptab_type
+{
+  int w1 = -1;
+  int w2 = -1;
+  std::string ind = "";
+  double h = -1.1;
+
+  inline bool valid() const
+  {
+    return !ind.empty() && w1 != -1 && w2 != -1 && h != -1.1;
+  }
+};
+
+
+template <typename T, typename Pred>
+pptab_type FilterCopyIf(const std::vector<T>& vec, Pred p) {
+  std::vector<T> out;
+  copy_if(begin(vec), end(vec), std::back_inserter(out), p);
+  return out[0];
+}
+
+
+int find_elementof_pptab_struct(std::vector<pptab_type> & where_search,
+                                int & w1_val,
+                                int & w2_val,
+                                double *write_here_h){
+  int line_ind = -1;
+  int vlen = where_search.size();
+  pptab_type filtered = FilterCopyIf(where_search,
+                                     [&w1_val, &w2_val](const pptab_type& elem)
+                                     {return (elem.w1 == w1_val &&
+                                              elem.w2 == w2_val); });
+  if (filtered.valid()){
+    for (int i = 0; i < vlen; i++){
+      if (where_search[i].w1 == w1_val &&
+          where_search[i].w2 == w2_val &&
+          where_search[i].ind == filtered.ind &&
+          where_search[i].h == filtered.h){
+        line_ind = i;
+        *write_here_h = filtered.h;
+        break;
+      }
+    }
+  }
+  return line_ind;
+}
+
+
 // for equal levels only
 // sums two vectors z values with corresponding indexes ind
 std::map <std::string, double> sum_rasters(const std::vector<std::string> & ind1,
@@ -2355,7 +2404,71 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
     }
   }
 
-return watersheds;
+
+  // Determining pp between watersheds (Step 4)
+
+  std::vector<pptab_type> pp_tab;
+  for (auto const & acell : watersheds){
+    // get the cell's neighbors
+    std::vector<std::string> this_vicinity = cell_vecinity(acell.first, 1);
+    // compare center cell mark and its neighbors'
+    int center_mark = acell.second;  // current cell watershed
+    double center_h = geotab[acell.first]; // current cell height
+    // go via neighbors
+    for (auto const & vic_ind : this_vicinity){
+      if (watersheds.find(vic_ind) != watersheds.end()){
+        if (center_mark != watersheds[vic_ind]){
+          // so, we are on a border
+          double neighbour_h = geotab[vic_ind]; // this neighbor cell height
+          int this_mark = watersheds[vic_ind];  // this neighbor cell watershed
+          std::string heigher_cell_index = acell.first;
+          double heigher_cell_height = center_h;
+          int less_mark_mark = center_mark;
+          int greater_mark_mark = this_mark;
+          if (center_mark > this_mark){
+            less_mark_mark = this_mark;
+            greater_mark_mark = center_mark;
+          }
+          if (center_h < neighbour_h){
+            heigher_cell_index = vic_ind;
+            heigher_cell_height = neighbour_h;
+          }
+
+          // if element will be found, here would be the height
+          double height_of_filtered = -1000.0;
+          int wline_num = find_elementof_pptab_struct(pp_tab,
+                                                      less_mark_mark,
+                                                      greater_mark_mark,
+                                                      &height_of_filtered);
+
+         // if (wline_num != -1){
+           // if (heigher_cell_height < height_of_filtered){
+             // pp_tab[wline_num].h = heigher_cell_height;
+            //  pp_tab[wline_num].ind = heigher_cell_index;
+           // }
+         // }else{
+           // pptab_type wline;
+           // wline.w1 = less_mark_mark;
+           // wline.w2 = greater_mark_mark;
+           // wline.ind = heigher_cell_index;
+            //wline.h = heigher_cell_height;
+            //pp_tab.push_back(wline);
+         // }
+        }
+      }
+    }
+
+//for (int j = 0; j < pp_tab.size(); j++){
+ // std::cout<<pp_tab[j].w1<<" ; "<<pp_tab[j].w2<<" ; "<<pp_tab[j].ind<<" ; "<<pp_tab[j].h<<std::endl;
+//}
+  }
+
+
+
+
+
+
+  return watersheds;
 }
 
 
