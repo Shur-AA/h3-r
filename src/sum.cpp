@@ -2407,7 +2407,12 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
 
   // Determining pp between watersheds (Step 4)
 
-  std::vector<pptab_type> pp_tab;
+  // here is watersheds table consisting of 4 vectors
+  std::vector<int> w1;
+  std::vector<int> w2;
+  std::vector<std::string> cell_ind;
+  std::vector<double> cell_height;
+
   for (auto const & acell : watersheds){
     // get the cell's neighbors
     std::vector<std::string> this_vicinity = cell_vecinity(acell.first, 1);
@@ -2434,35 +2439,62 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
             heigher_cell_height = neighbour_h;
           }
 
-          // if element will be found, here would be the height
-          double height_of_filtered = -1000.0;
-          int wline_num = find_elementof_pptab_struct(pp_tab,
-                                                      less_mark_mark,
-                                                      greater_mark_mark,
-                                                      &height_of_filtered);
 
-         // if (wline_num != -1){
-           // if (heigher_cell_height < height_of_filtered){
-             // pp_tab[wline_num].h = heigher_cell_height;
-            //  pp_tab[wline_num].ind = heigher_cell_index;
-           // }
-         // }else{
-           // pptab_type wline;
-           // wline.w1 = less_mark_mark;
-           // wline.w2 = greater_mark_mark;
-           // wline.ind = heigher_cell_index;
-            //wline.h = heigher_cell_height;
-            //pp_tab.push_back(wline);
-         // }
+          // check, if there is the entry with this couple of watersheds
+          bool new_entry = true; // if the watersheds pair is new in table
+          if ((std::find(w1.begin(), w1.end(), less_mark_mark) != w1.end()) &&
+              (std::find(w2.begin(), w2.end(), greater_mark_mark) != w2.end())){
+            // if there are some records, check if they are on the same places
+            for (int i = 0; i < w1.size(); i++){
+              if (w1[i] == less_mark_mark && w2[i] == greater_mark_mark){
+                new_entry = false;
+                if (heigher_cell_height < cell_height[i]){
+                  cell_height[i] = heigher_cell_height;
+                  cell_ind[i] = heigher_cell_index;
+                  break;
+                }
+              }
+            }
+          }
+          if (new_entry){
+            w1.push_back(less_mark_mark);
+            w2.push_back(greater_mark_mark);
+            cell_ind.push_back(heigher_cell_index);
+            cell_height.push_back(heigher_cell_height);
+          }
         }
       }
     }
-
-//for (int j = 0; j < pp_tab.size(); j++){
- // std::cout<<pp_tab[j].w1<<" ; "<<pp_tab[j].w2<<" ; "<<pp_tab[j].ind<<" ; "<<pp_tab[j].h<<std::endl;
-//}
   }
 
+
+  // Defining each watershed's lowest pour point (Step 5)
+
+  std::unordered_map<int, std::string> w_lowest_pp;
+  int max_w_mark = *max_element(std::begin(w2), std::end(w2));
+  for (int m = 0; m <= max_w_mark; m++){
+    double lowest_pp_h = 1000.0;
+    std::string lowest_pp_ind = "";
+    for (int i = 0; i < w1.size(); i++){
+      if (w1[i] == m && cell_height[i] < lowest_pp_h){
+        lowest_pp_h = cell_height[i];
+        lowest_pp_ind = cell_ind[i];
+      }
+    }
+    for (int j = 0; j < w2.size(); j++){
+      if (w2[j] == m && cell_height[j] < lowest_pp_h){
+        lowest_pp_h = cell_height[j];
+        lowest_pp_ind = cell_ind[j];
+      }
+    }
+    w_lowest_pp[m] = lowest_pp_ind;
+  }
+
+
+
+  for (int i = 0; i <= max_w_mark; i++){
+    std::cout<<i<<"-"<<w_lowest_pp[i]<<std::endl;
+  }
 
 
 
