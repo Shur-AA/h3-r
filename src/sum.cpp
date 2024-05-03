@@ -2496,6 +2496,33 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
     std::cout<<i<<"-"<<w_lowest_pp[i]<<std::endl;
   }
 
+  // analyzing pp paths (Step 6)
+  // merging and filling depressions (Step 7)
+
+
+  // previously make table of low points in each watershed
+  // and select only those that are on edge
+  // (as it's the only way to stop algorithm)
+  // then mark watersheds with such points as exitable
+  std::vector<int> exit_watersheds;
+  for (auto const & pp : poor_points){
+    if (std::find(ecells.begin(), ecells.end(), pp) != ecells.end()){
+      exit_watersheds.push_back(watersheds[pp]);
+    }
+  }
+
+
+  // go through watersheds one by one
+
+  for (auto const & wnum : w_lowest_pp){
+    // if there is non-exit watershed
+    if (std::find(exit_watersheds.begin(), exit_watersheds.end(),
+                  wnum) == exit_watersheds.end()){
+
+    }
+  }
+
+
 
 
 
