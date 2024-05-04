@@ -614,7 +614,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // fill_depr_jd
-std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string>& inds, std::vector<double>& z);
+std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::string>& inds, std::vector<double>& z);
 RcppExport SEXP _h3_fill_depr_jd(SEXP indsSEXP, SEXP zSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

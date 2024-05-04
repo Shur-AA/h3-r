@@ -122,14 +122,14 @@ for (h in c(5, 7, 6)){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'pp', h, '.csv', sep = ''))
-  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fdem', h, '.csv', sep = ''))
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'newfd', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'newh', h, '.csv', sep = ''))
   colnames(fdem) = c('h3_ind', 'z')
 
+  fdem = h3:::fill_depr_jd(fdem$h3_ind, fdem$z)
 
-  fd_ext = h3:::fd_experiment(tab$h3_ind, tab$z)
-  h = '_09'
-  #fd_ext = h3:::drainage(fdem$h3_ind, fdem$z)
+
+  fd_ext = h3:::drainage(fdem$h3_ind, fdem$z)
   write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   colnames(fd_ext) = c('from', 'to')

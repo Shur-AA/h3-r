@@ -2129,7 +2129,7 @@ std::map <std::string, double> fill_depr_Planchon(std::vector<std::string> & ind
 // Jenson-Domingue
 
 // [[Rcpp::export]]
-std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & inds,
+std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::string> & inds,
                                                            std::vector<double> & z){
   std::unordered_map <std::string, double> geotab; // resulting tab of heights
   try{
@@ -2496,6 +2496,9 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
     std::cout<<i<<"-"<<w_lowest_pp[i]<<std::endl;
   }
 
+
+
+
   // analyzing pp paths (Step 6)
   // merging and filling depressions (Step 7)
 
@@ -2514,11 +2517,242 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
 
   // go through watersheds one by one
 
-  for (auto const & wnum : w_lowest_pp){
-    // if there is non-exit watershed
-    if (std::find(exit_watersheds.begin(), exit_watersheds.end(),
-                  wnum) == exit_watersheds.end()){
+  // watersheds, that were aggregated and no more alive
+  std::vector<int> nonexisting_w;
 
+  bool smth_changed = true;
+  while (smth_changed){
+    smth_changed = false;
+      for (auto const & wnum : w_lowest_pp){
+        // if there is non-exit and existing watershed
+        if (std::find(exit_watersheds.begin(), exit_watersheds.end(),
+                      wnum.first) == exit_watersheds.end() &&
+            std::find(nonexisting_w.begin(), nonexisting_w.end(),
+                      wnum.first) == nonexisting_w.end()){
+
+          // looking for second watershed with which could be aggregation
+          int second_watershed = wnum.first; // default if no matching
+          double filling_height = geotab[wnum.second];
+          for (int i = 0; i < w1.size(); i++){
+            if (w1[i] == wnum.first && cell_ind[i] == wnum.second &&
+                std::find(nonexisting_w.begin(), nonexisting_w.end(),
+                          w2[i]) == nonexisting_w.end()){
+              second_watershed = w2[i];
+              filling_height = cell_height[i];
+              break;
+            }
+            if (w2[i] == wnum.first && cell_ind[i] == wnum.second &&
+                std::find(nonexisting_w.begin(), nonexisting_w.end(),
+                          w1[i]) == nonexisting_w.end()){
+              second_watershed = w1[i];
+              filling_height = cell_height[i];
+              break;
+            }
+          }
+          // check if second watershed has the same lpp
+          // if yes - unite them, if not - fill only first watershed
+          if (wnum.second != w_lowest_pp[second_watershed]){
+            std::cout<<wnum.first<<" filling with "<<filling_height<<std::endl;
+            for (auto const & acell : watersheds){
+              if (acell.second == wnum.first){
+                if (geotab[acell.first] < filling_height){
+                  geotab[acell.first] = filling_height;
+                }
+              }
+            }
+          }else{
+            // making union from two watersheds
+            std::cout<<wnum.first<<"+"<<second_watershed<<std::endl;
+            ++max_w_mark;
+            smth_changed = true;
+            // for cells comprising aggregated watershed for simple calling
+            std::vector<std::string> new_watershed;
+            for (auto const & acell : watersheds){
+              if (acell.second == second_watershed || acell.second == wnum.first){
+                watersheds[acell.first] = max_w_mark;
+                new_watershed.push_back(acell.first);
+              }
+            }
+            // marking old watersheds as non-existing
+            nonexisting_w.push_back(wnum.first);
+            nonexisting_w.push_back(second_watershed);
+            // for newborn watershed calculate new pp and lpp
+            for (auto const & acell : new_watershed){
+              // get the cell's neighbors
+              std::vector<std::string> this_vicinity = cell_vecinity(acell, 1);
+              // compare center cell mark and its neighbors'
+              // current cell watershed is max_w_mark
+              double center_h = geotab[acell]; // current cell height
+              // go via neighbors
+              for (auto const & vic_ind : this_vicinity){
+                if (watersheds.find(vic_ind) != watersheds.end()){
+                  if (max_w_mark != watersheds[vic_ind]){
+                    // so, we are on the border
+                    double neighbour_h = geotab[vic_ind]; // this neighbor cell height
+                    int this_mark = watersheds[vic_ind];  // this neighbor cell watershed
+                    std::string heigher_cell_index = acell;
+                    double heigher_cell_height = center_h;
+                    int less_mark_mark = max_w_mark;
+                    int greater_mark_mark = this_mark;
+                    if (max_w_mark > this_mark){
+                      less_mark_mark = this_mark;
+                      greater_mark_mark = max_w_mark;
+                    }
+                    if (center_h < neighbour_h){
+                      heigher_cell_index = vic_ind;
+                      heigher_cell_height = neighbour_h;
+                    }
+
+
+                    // check, if there is the entry with this couple of watersheds
+                    bool new_entry = true; // if the watersheds pair is new in table
+                    if ((std::find(w1.begin(), w1.end(), less_mark_mark) != w1.end()) &&
+                        (std::find(w2.begin(), w2.end(), greater_mark_mark) != w2.end())){
+                      // if there are some records, check if they are on the same places
+                      for (int i = 0; i < w1.size(); i++){
+                        if (w1[i] == less_mark_mark && w2[i] == greater_mark_mark){
+                          new_entry = false;
+                          if (heigher_cell_height < cell_height[i]){
+                            cell_height[i] = heigher_cell_height;
+                            cell_ind[i] = heigher_cell_index;
+                            break;
+                          }
+                        }
+                      }
+                    }
+                    if (new_entry){
+                      w1.push_back(less_mark_mark);
+                      w2.push_back(greater_mark_mark);
+                      cell_ind.push_back(heigher_cell_index);
+                      cell_height.push_back(heigher_cell_height);
+                    }
+                  }
+                }
+              }
+
+              // Defining the watershed's lowest pour point
+
+              double lowest_pp_h = 1000.0;
+              std::string lowest_pp_ind = "";
+              for (int i = 0; i < w1.size(); i++){
+                if (w1[i] == max_w_mark && cell_height[i] < lowest_pp_h){
+                  lowest_pp_h = cell_height[i];
+                  lowest_pp_ind = cell_ind[i];
+                }
+              }
+              for (int j = 0; j < w2.size(); j++){
+                if (w2[j] == max_w_mark && cell_height[j] < lowest_pp_h){
+                  lowest_pp_h = cell_height[j];
+                  lowest_pp_ind = cell_ind[j];
+                }
+              }
+              w_lowest_pp[max_w_mark] = lowest_pp_ind;
+
+            }
+          }
+        }
+      }
+  }
+
+
+
+
+
+
+  // computing flow directions (Step 2)
+  std::unordered_map <std::string, std::string> fdtab1; // tab of flow directions
+  std::vector<std::string> need_postprocess1;
+  for (auto const & acell : geotab){
+    // if edged cell - write it and not analyse
+    if (std::find(ecells.begin(), ecells.end(), acell.first) != ecells.end()){
+      fdtab1[acell.first] = "edge";
+    }else{
+      // get the cell's neighbors
+      std::vector<std::string> this_vicinity = cell_vecinity(acell.first, 1);
+      // calculate drops with neighbors
+      std::vector<double> drops;
+      double center_value = acell.second;  // current cell height
+      // go via neighbors
+      for (auto const & vic_ind : this_vicinity){
+        double this_value = geotab[vic_ind];
+        double this_drop = center_value - this_value;
+        drops.push_back(this_drop);
+      }
+      // examine the drop values
+      double max_drop = *max_element(std::begin(drops),
+                                     std::end(drops));
+      // check for 3a condition
+      if (max_drop < 0){
+        fdtab1[acell.first] = "undef";
+      }
+
+      // check for 3b condition
+      int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
+      if (max_drop >= 0 && maxes_num == 1){
+        fdtab1[acell.first] = this_vicinity[el_ind_indouble_vect(drops, max_drop)];
+      }
+
+      // check for 3c condition
+      // NB: we don't use table loop-up, all is arbitrary and this may cause loops
+      if (max_drop > 0 && maxes_num > 1){
+        fdtab1[acell.first] = this_vicinity[el_ind_indouble_vect(drops, max_drop)];
+      }
+
+      // check for 3d condition
+      if (max_drop == 0 && maxes_num > 1){
+        fdtab1[acell.first] = "zero_drops";
+        need_postprocess1.push_back(acell.first);
+      }
+    }
+  }
+  // Step 2.4
+
+  // if there are cells with no direction and they are not edged
+  // (have more than one neighbor with equal height)
+  if (need_postprocess1.size() > 0){
+    for (auto const & npcell : need_postprocess1){
+      // get the cell's neighbors
+      std::vector<std::string> this_vicinity = cell_vecinity(npcell, 1);
+      // calculate drops with neighbors
+      std::vector<double> drops;
+      double center_value = geotab[npcell];  // current cell height
+      // go via neighbors
+      for (auto const & vic_ind : this_vicinity){
+        double this_value = geotab[vic_ind];
+        double this_drop = center_value - this_value;
+        drops.push_back(this_drop);
+      }
+      // examine the drop values
+      double max_drop = *max_element(std::begin(drops),
+                                     std::end(drops));
+      int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
+
+      // recheck condition of zero drop and
+      // assigning direction in ambiguous situation
+      bool resolve_zd_problem = false;
+      if (max_drop == 0 && maxes_num > 1){
+
+        int i = 0;
+        for (auto const & element : drops){
+          if (element == max_drop){
+            std::string sosed_index = this_vicinity[i];
+            // if the neighbor has flow dir and it's not into this npcell
+            if (fdtab1.find(sosed_index) != fdtab1.end()){
+              if (fdtab1[sosed_index] != npcell &&
+                  fdtab1[sosed_index] != "zero_drops" &&
+                  fdtab1[sosed_index] != "undef"){
+                fdtab1[npcell] = sosed_index;
+                resolve_zd_problem = true;
+                break;
+              }
+            }
+          }
+          i++;
+        }
+        std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
+      }else{
+        std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
+      }
     }
   }
 
@@ -2527,7 +2761,8 @@ std::unordered_map <std::string, int> fill_depr_jd(std::vector<std::string> & in
 
 
 
-  return watersheds;
+
+  return fdtab1;
 }
 
 
