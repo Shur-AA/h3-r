@@ -103,7 +103,7 @@ for (h in c(5, 7, 6)){
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 50000) %>%
+              st_buffer(dist = 30000) %>%
               st_transform(crs = 4326)
 
 
@@ -112,9 +112,10 @@ for (h in c(5, 7, 6)){
   tile = st_crop(rast, pol_plus)
 
 
-  rast = st_transform(rast, 4326)
+  #rast = st_transform(rast, 4326)
   # конвертируем его в сетку
-  tab = h3::h3_raster_to_hex(tile, start_h3_l)
+  tab = h3::h3_raster_to_hex(tile, start_h3_l) %>% na.omit()
+  #tab = h3::h3_raster_to_hex(rast, 8)
   # выбираем исходным шестиугольником только те ячейки, чьи узлы в него попадают
   tab_pnt = st_as_sf(tab, coords = c('x', 'y'), crs = 4326)
   tab1 = tab_pnt[pol,]
@@ -122,16 +123,22 @@ for (h in c(5, 7, 6)){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'newfd', h, '.csv', sep = ''))
-  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'newh', h, '.csv', sep = ''))
-  colnames(fdem) = c('h3_ind', 'z')
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'zd', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'Wtsh_ext', h, '.csv', sep = ''))
+  colnames(fdem) = c('from', 'z')
+  fdem = filter(fdem, z != 'edge')
+  fa = h3::h3_flow_acc(fdem$from, fdem$to)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
+    filter(`x` > 20)
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 
-  fdem = h3:::fill_depr_jd(fdem$h3_ind, fdem$z)
+
 
 
   fd_ext = h3:::drainage(fdem$h3_ind, fdem$z)
   write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'newfd', h, '.csv', sep = ''))
   colnames(fd_ext) = c('from', 'to')
   fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
@@ -329,3 +336,26 @@ if (std::find(poor_points.begin(), poor_points.end(),
   poor_points.push_back(dir_pair.first);
   watersheds[dir_pair.first] = ++w;
 }
+
+
+
+// pre-post processing for flat areas which are next to lpp
+// and may not outpour via them
+for (auto const & acell : w_lowest_pp){
+  // go through all lpp cells
+  // get the cell's neighbors
+    std::vector<std::string> this_vicinity = cell_vecinity(acell.second, 1);
+    for (auto const & vic_ind : this_vicinity){
+      // if the cell is from flat (zd) area and has same height with current cell
+      if (std::find(need_postprocess1.begin(), need_postprocess1.end(), vic_ind)
+            != need_postprocess1.end() && geotab[vic_ind] == geotab[acell.second]){
+        fdtab1[vic_ind] = acell.second;
+        np_copy.erase(std::remove(np_copy.begin(),
+                                  np_copy.end(), vic_ind),
+                                  np_copy.end());
+        need_postprocess1.erase(std::remove(need_postprocess1.begin(),
+                                            need_postprocess1.end(), vic_ind),
+                                            need_postprocess1.end());
+      }
+    }
+  }
