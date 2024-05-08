@@ -123,9 +123,9 @@ for (h in c(5, 7, 6)){
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
   fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'zd', h, '.csv', sep = ''))
-  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'Wtsh_ext', h, '.csv', sep = ''))
-  colnames(fdem) = c('from', 'z')
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'zdpro', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'zdpro', h, '.csv', sep = ''))
+  colnames(fdem) = c('from', 'to')
   fdem = filter(fdem, z != 'edge')
   fa = h3::h3_flow_acc(fdem$from, fdem$to)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
