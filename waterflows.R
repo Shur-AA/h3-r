@@ -6,10 +6,13 @@ library(akima)
 library(tidyr)
 library(readxl)
 library(RPostgres)
+library(Matrix)
+library(data.table)
 
 
 options(scipen=999)
 rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/gebco_orange.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
 
@@ -80,9 +83,12 @@ hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
 rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
+
+
 for (h in c(5, 7, 6)){
   print(h)
-  h = 5
+  h = 40
+  start.time <- Sys.time()
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
   plg_m = matrix(c(ahex), ncol = 2, byrow = TRUE)
@@ -103,7 +109,7 @@ for (h in c(5, 7, 6)){
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 30000) %>%
+              st_buffer(dist = 6000) %>%
               st_transform(crs = 4326)
 
 
@@ -120,31 +126,35 @@ for (h in c(5, 7, 6)){
   tab_pnt = st_as_sf(tab, coords = c('x', 'y'), crs = 4326)
   tab1 = tab_pnt[pol,]
 
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+  time.taken
+
   #  tab1 - стандартный шестиугольник; tab - расширенный шестиугольник
 
-  fdem = h3:::fill_depr_jd(tab1$h3_ind, tab1$z)
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'zdpro', h, '.csv', sep = ''))
-  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'zdpro', h, '.csv', sep = ''))
+  fdem = h3:::fill_depr_jd(tab$h3_ind, tab$z)
+
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+  time.taken
+
+
+
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   colnames(fdem) = c('from', 'to')
-  fdem = filter(fdem, z != 'edge')
+  fdem = filter(fdem, to != 'edge')
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
   fa = h3::h3_flow_acc(fdem$from, fdem$to)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
   fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
-    filter(`x` > 20)
+    filter(`x` > 40)
   write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+  time.taken
 
-
-
-  fd_ext = h3:::drainage(fdem$h3_ind, fdem$z)
-  write.csv(fd_ext, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-  fd_ext = read.csv(paste('C:/Users/user/Downloads/gidro/', 'newfd', h, '.csv', sep = ''))
-  colnames(fd_ext) = c('from', 'to')
-  fa = h3::h3_flow_acc(fd_ext$from, fd_ext$to)
-  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
-  fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
-    filter(`x` > 0)
-  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
 }
 
 

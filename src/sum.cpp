@@ -11,6 +11,9 @@
 #include <queue>
 #include <bits/stdc++.h>
 #include <iostream>
+#include <fstream>
+#include "string_graph.hpp"
+#include <memory>
 
 using namespace Rcpp;
 
@@ -312,6 +315,14 @@ double expit(double x, int power){
     result = result * x;
   }
   return result;
+}
+
+
+
+// helps with memory
+template<typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+  return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
 
@@ -767,9 +778,43 @@ double calc_addition(std::string cell1,
 // filtering str-str map by value
 // returns vector of corresponding keys
 
-std::vector<std::string> map_filter(
-                const std::unordered_map<std::string, std::string> & fullmap,
-                const std::string & filter_val){
+std::vector<std::string> map_filter(const std::unordered_map<std::string, std::string> & fullmap,
+                                    const std::string & filter_val){
+  std::vector<std::string> filtered_keys;
+  for (auto const & elm : fullmap){
+    if (elm.second == filter_val){
+      filtered_keys.push_back(elm.first);
+    }
+  }
+  return filtered_keys;
+}
+
+
+// filtering str-str map by value
+// returns same str-str map
+
+std::unordered_map<std::string, std::string> map_filter(const std::unordered_map<std::string, std::string> & fullmap,
+                                                        const std::string & filter_val,
+                                                        bool save_structure){
+  std::unordered_map<std::string, std::string> filtered_tab;
+    if (save_structure == true){
+      for (auto const & elm : fullmap){
+        if (elm.second == filter_val){
+          filtered_tab[elm.first] = filter_val;
+        }
+      }
+    }else{
+      filtered_tab = fullmap;
+    }
+  return filtered_tab;
+}
+
+
+// filtering str-int map by value
+// returns vector of corresponding keys
+
+std::vector<std::string> map_filter(const std::unordered_map<std::string, int> & fullmap,
+                                    const int & filter_val){
   std::vector<std::string> filtered_keys;
   for (auto const & elm : fullmap){
     if (elm.second == filter_val){
@@ -2162,7 +2207,7 @@ std::map <std::string, double> fill_depr_Planchon(std::vector<std::string> & ind
 // Jenson-Domingue
 
 // [[Rcpp::export]]
-std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::string> & inds,
+std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::string> & inds,
                                                            std::vector<double> & z){
   std::unordered_map <std::string, double> geotab; // resulting tab of heights
   try{
@@ -2203,50 +2248,50 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
 
     for (auto const & vec_ind : this_vecinity){
 
-         if (center_value != -100){
+      if (center_value != -100){
 
-             if (data_map.find(vec_ind) == data_map.end()){
-               vcnt_statistics["is_beyond"]++;
-             } else {
+        if (data_map.find(vec_ind) == data_map.end()){
+          vcnt_statistics["is_beyond"]++;
+        } else {
 
-               double this_value = data_map[vec_ind];
-               if (center_value - this_value < 0){
-                 sinking_rate++;
-               }
-               if (this_value < minh){
-                 minh = this_value;
-               }
+          double this_value = data_map[vec_ind];
+          if (center_value - this_value < 0){
+            sinking_rate++;
+          }
+          if (this_value < minh){
+            minh = this_value;
+          }
 
 
-               if (data_map[vec_ind] == -100){
-                 vcnt_statistics["is_nodata"]++;
-               } else {
-                 vcnt_statistics["is_height"]++;
-               }
-             }
-         }
+          if (data_map[vec_ind] == -100){
+            vcnt_statistics["is_nodata"]++;
+          } else {
+            vcnt_statistics["is_height"]++;
+          }
+        }
+      }
     }
 
     if (sinking_rate == this_vecinity.size()){
-       geotab[acell.first] = minh;
+      geotab[acell.first] = minh;
     }else{
-       geotab[acell.first] = center_value;
-         }
+      geotab[acell.first] = center_value;
+    }
 
     int nbs_num = this_vecinity.size();
     if (vcnt_statistics["is_height"] == nbs_num ||
         vcnt_statistics["is_nodata"] == nbs_num ||
         vcnt_statistics["is_beyond"] == nbs_num){
-     // exactly not edge
-        continue;
+      // exactly not edge
+      continue;
     }else{
-    if (vcnt_statistics["is_height"] > 0 &&
-         (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
-         data_map.find(acell.first) != data_map.end() && acell.second != -100){
-       // that's edge cell
-       ecells.push_back(acell.first);
+      if (vcnt_statistics["is_height"] > 0 &&
+          (vcnt_statistics["is_nodata"] > 0 || vcnt_statistics["is_beyond"] > 0) &&
+          data_map.find(acell.first) != data_map.end() && acell.second != -100){
+        // that's edge cell
+        ecells.push_back(acell.first);
+      }
     }
-         }
   }
 
 
@@ -2326,23 +2371,23 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
       bool resolve_zd_problem = false;
       if (max_drop == 0 && maxes_num > 1){
 
-          int i = 0;
-          for (auto const & element : drops){
-            if (element == max_drop){
-              std::string sosed_index = this_vicinity[i];
-              // if the neighbor has flow dir and it's not into this npcell
-              if (fdtab.find(sosed_index) != fdtab.end()){
-                if (fdtab[sosed_index] != npcell &&
-                    fdtab[sosed_index] != "zero_drops" &&
-                    fdtab[sosed_index] != "undef"){
-                      fdtab[npcell] = sosed_index;
-                      resolve_zd_problem = true;
-                      break;
-                }
+        int i = 0;
+        for (auto const & element : drops){
+          if (element == max_drop){
+            std::string sosed_index = this_vicinity[i];
+            // if the neighbor has flow dir and it's not into this npcell
+            if (fdtab.find(sosed_index) != fdtab.end()){
+              if (fdtab[sosed_index] != npcell &&
+                  fdtab[sosed_index] != "zero_drops" &&
+                  fdtab[sosed_index] != "undef"){
+                fdtab[npcell] = sosed_index;
+                resolve_zd_problem = true;
+                break;
               }
             }
-            i++;
           }
+          i++;
+        }
         std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
       }else{
         std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
@@ -2369,71 +2414,71 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
       continue;
 
     }else{
-          std::vector<std::string> this_path; // path to poor point
-          this_path.push_back(dir_pair.first);
-          std::string toind = dir_pair.second; // where to flow
-          std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
-          while(true){
-            if (fdtab.find(toind) != fdtab.end()){
+      std::vector<std::string> this_path; // path to poor point
+      this_path.push_back(dir_pair.first);
+      std::string toind = dir_pair.second; // where to flow
+      std::map <std::string, int> control_loops; // table to count visits of each cell of a stream
+      while(true){
+        if (fdtab.find(toind) != fdtab.end()){
 
-                      // checking loops
-                      control_loops[toind]++;
-                      bool flag = false;
-                      for (auto const & loop_pair : control_loops){
-                        // если посетили больше 1 раза, значит уже зациклились
-                        if (loop_pair.second > 1){flag = true;}
-                      }
-                      if (flag){
-                        break;
-                      }else{
-                        this_path.push_back(toind);
-                        toind = fdtab[toind];
-                      }
-            }else{
-              if (toind != "edge" &&
-                  toind != "zero_drops" &&
-                  toind != "undef"){
-                this_path.push_back(toind);
-              }
-              break;
-            }
+          // checking loops
+          control_loops[toind]++;
+          bool flag = false;
+          for (auto const & loop_pair : control_loops){
+            // если посетили больше 1 раза, значит уже зациклились
+            if (loop_pair.second > 1){flag = true;}
           }
+          if (flag){
+            break;
+          }else{
+            this_path.push_back(toind);
+            toind = fdtab[toind];
+          }
+        }else{
+          if (toind != "edge" &&
+              toind != "zero_drops" &&
+              toind != "undef"){
+            this_path.push_back(toind);
+          }
+          break;
+        }
+      }
 
-          // now we have list with path ending in some poor point
-          // check if the end is in the poor points list
-          int pp_len = this_path.size();
-          if (pp_len > 0){
-            std::string last_added = this_path[pp_len - 1];
+      // now we have list with path ending in some poor point
+      // check if the end is in the poor points list
+      int pp_len = this_path.size();
+      if (pp_len > 0){
+        std::string last_added = this_path[pp_len - 1];
 
-            // check if we have reverse pair of poor points
-            if (fdtab.find(last_added) != fdtab.end()){
-              if (fdtab.find(fdtab[last_added]) != fdtab.end()){
-                if (fdtab[fdtab[last_added]] == last_added){
-                  if (std::find(poor_points.begin(), poor_points.end(),
-                                fdtab[last_added]) != poor_points.end()){
-                    poor_points.push_back(last_added);
-                    label = watersheds[fdtab[last_added]];
-                    watersheds[last_added] = label;
-                  }
-                }
+        // check if we have reverse pair of poor points
+        if (fdtab.find(last_added) != fdtab.end()){
+          if (fdtab.find(fdtab[last_added]) != fdtab.end()){
+            if (fdtab[fdtab[last_added]] == last_added){
+              if (std::find(poor_points.begin(), poor_points.end(),
+                            fdtab[last_added]) != poor_points.end()){
+                poor_points.push_back(last_added);
+                label = watersheds[fdtab[last_added]];
+                watersheds[last_added] = label;
               }
             }
-
-            if (std::find(poor_points.begin(), poor_points.end(),
-                          last_added) != poor_points.end()){
-              // if it is already in poor points list
-              // take corresponding watershed label
-              label = watersheds[last_added];
-            }else{
-                  // if it is not in poor points list yet
-                  poor_points.push_back(last_added);
-                  watersheds[last_added] = w++;
-                  label = w - 1;
-            }
-            for (int i = 0; i < (pp_len - 1); i++){
-              watersheds[this_path[i]] = label;
-            }
           }
+        }
+
+        if (std::find(poor_points.begin(), poor_points.end(),
+                      last_added) != poor_points.end()){
+          // if it is already in poor points list
+          // take corresponding watershed label
+          label = watersheds[last_added];
+        }else{
+          // if it is not in poor points list yet
+          poor_points.push_back(last_added);
+          watersheds[last_added] = w++;
+          label = w - 1;
+        }
+        for (int i = 0; i < (pp_len - 1); i++){
+          watersheds[this_path[i]] = label;
+        }
+      }
     }
   }
 
@@ -2521,6 +2566,7 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
       }
     }
     w_lowest_pp[m] = lowest_pp_ind;
+
   }
   // analyzing pp paths (Step 6)
   // merging and filling depressions (Step 7)
@@ -2538,6 +2584,11 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
   }
 
 
+  for (auto const & pwp : exit_watersheds){
+    std::cout<<pwp<<"[->"<<std::endl;
+  }
+
+
   // go through watersheds one by one
 
   // watersheds, that were aggregated and no more alive
@@ -2552,7 +2603,6 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
                     wnum.first) == exit_watersheds.end() &&
                       std::find(nonexisting_w.begin(), nonexisting_w.end(),
                                 wnum.first) == nonexisting_w.end()){
-
         // looking for second watershed with which could be aggregation
         int second_watershed = wnum.first; // default if no matching
         double filling_height = geotab[wnum.second];
@@ -2737,7 +2787,6 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
 
   // in fact that is flooded areas with ambiguous fd
 
-  std::unordered_map<std::string, int> loop_controller;
   // there are final lpps
   std::vector<std::string> lowest_pp_list;
   for (auto const & elm : w_lowest_pp){
@@ -2755,229 +2804,172 @@ std::unordered_map <std::string, std::string> fill_depr_jd(std::vector<std::stri
   std::unordered_map<std::string, std::string> zdtab;
   for (auto const & np : need_postprocess1){
     zdtab[np] = w_lowest_pp[watersheds[np]];
+    if (np == "88ada23013fffff"){
+      std::cout<<w_lowest_pp[watersheds[np]]<<"-"<<watersheds[np]<<std::endl;
+    }
   }
-  // go through final lpps and analysing related zd cells
+
+
+
   for (auto const & lpp : lowest_pp_list){
+
     // only current group of zd
     std::vector<std::string> zd_group = map_filter(zdtab, lpp);
     int group_size = zd_group.size();
     if (group_size == 0){
       // means, that it was edged lpp
       continue;
-      }
+    }
     if (group_size == 1){
       fdtab1[zd_group[0]] = lpp;
       continue;
     }
     if (group_size > 1){
-      // from this step we use graph model metrics, methods and structures
-      // creating matrix of connections
-      ++group_size;
-      zd_group.push_back(lpp);
-      int link_matrix[group_size][group_size];
-      // fill all links with nulls;
-      for (int i = 0; i < group_size; i++){
-        link_matrix[i][i] = 0;
-        for (int j = i + 1; j < group_size; j++) {
-          link_matrix[i][j] = 0;
-          link_matrix[j][i] = 0;
+
+      // crutch: check if lpp cell has connection with its flat area
+      std::vector<std::string> this_vicinity = cell_vecinity(lpp, 1);
+      bool has_connection = false;
+      for (auto const & vic_ind : this_vicinity){
+        if (std::find(zd_group.begin(), zd_group.end(), vic_ind) != zd_group.end()){
+          has_connection = true;
+          break;
         }
       }
-      // defining who whose neighbor
-      for (int i = 0; i < group_size; i++){
-        std::vector<std::string> this_vicinity = cell_vecinity(zd_group[i], 1);
+      // if no connection, searching for first lpp neighbor, which has
+      if (!has_connection){
         for (auto const & vic_ind : this_vicinity){
-          if (std::find(zd_group.begin(), zd_group.end(), vic_ind) != zd_group.end()){
-            // el number in group list = in matrix
-            int j = el_ind_in_vect(zd_group, vic_ind);
-            link_matrix[i][j] = 1;
-            link_matrix[j][i] = 1;
+          std::vector<std::string> nbr_vicinity = cell_vecinity(vic_ind, 1);
+          for (auto const & n_vic_ind : nbr_vicinity){
+            if ((std::find(zd_group.begin(), zd_group.end(), n_vic_ind) != zd_group.end())
+                  && (n_vic_ind != lpp)){
+              zd_group.push_back(n_vic_ind);
+              zdtab[vic_ind] = lpp;
+              std::cout<<vic_ind<<"-"<<lpp<<std::endl;
+              break;
+            }
           }
         }
       }
 
-      int d[group_size]; // min distance
-      int v[group_size]; // visited vertices
-      int temp, minindex, minn;
-      for (int t = 0; t < group_size - 1; t++){
-        int begin_index = t;
-        //Инициализация вершин и расстояний
-        for (int i = 0; i < group_size; i++){
-          d[i] = 10000;
-          v[i] = 1; //???
-        }
-        d[begin_index] = 0;
-        // Шаг алгоритма
-        do {
-          minindex = 10000;
-          minn = 10000;
-          for (int i = 0; i < group_size; i++){ // Если вершину ещё не обошли и вес меньше min
-            if ((v[i] == 1) && (d[i]<minn)){ // Переприсваиваем значения
-              minn = d[i];
-              minindex = i;
-            }
-          }
-          // Добавляем найденный минимальный вес
-          // к текущему весу вершины
-          // и сравниваем с текущим минимальным весом вершины
-          if (minindex != 10000){
-            for (int i = 0; i < group_size; i++){
-              if (link_matrix[minindex][i] > 0){
-                temp = minn + link_matrix[minindex][i];
-                if (temp < d[i]){
-                  d[i] = temp;
-                }
-              }
-            }
-            v[minindex] = 0;
-          }
-        } while (minindex < 10000);
 
-        // Восстановление пути
-        int ver[group_size]; // массив посещенных вершин
-        int end = group_size - 1; // индекс конечной вершины, lpp
-        ver[0] = end + 1; // начальный элемент - конечная вершина
-        int k = 1; // индекс предыдущей вершины
-        int weight = d[end]; // вес конечной вершины
+      std::unordered_map<std::string, std::string> zd_group_for_graph = map_filter(zdtab, lpp, true);
 
-        while (end != begin_index){ // пока не дошли до начальной вершины
-          for (int i = 0; i < group_size; i++){ // просматриваем все вершины
-            if (link_matrix[i][end] != 0){   // если связь есть
-              int temp = weight - link_matrix[i][end]; // определяем вес пути из предыдущей вершины
-              if (temp == d[i]){ // если вес совпал с рассчитанным
-                            // значит из этой вершины и был переход
-                weight = temp; // сохраняем новый вес
-                end = i;       // сохраняем предыдущую вершину
-                ver[k] = i + 1; // и записываем ее в массив
-                k++;
-              }
-            }
-          }
-        }
-        // Вывод пути (начальная вершина оказалась в конце массива из k элементов)
-        std::cout<<"Вывод кратчайшего пути:"<<std::endl;
-        for (int i = k - 1; i > 0; i--){
-          std::cout<<zd_group[ver[i] - 1]<<std::endl;
-          fdtab1[zd_group[ver[i] - 1]] = zd_group[ver[i - 1] - 1];
-          }
+      std::unique_ptr<stringgraph::Graph> h3graph = make_unique<stringgraph::Graph>(); // выделяем память
+      h3graph->make_graph(zd_group_for_graph); // создаем граф
+      std::unordered_map<std::string, std::string> pathmap = h3graph->find_path(lpp); // получаем результат
+      h3graph.reset(); // освобождаем память
+
+      for (auto const & elmt : pathmap){
+        fdtab1[elmt.first] = elmt.second;
       }
-
-
-
-
-
-
-
 
     }
-
-
-
-
-
-
   }
 
+  return fdtab1;
+}
 
 
 
 
   /*
 
-// this is initial algorihm, which unfortunately leads to loops
-// consisting not only of 3 cells, but greater
+   // this is initial algorihm, which unfortunately leads to loops
+   // consisting not only of 3 cells, but greater
 
-  bool flag = true;
-  while (np_copy.size() > 0 && flag == true){
-    // при такой схеме есть риск зациклиться из-за направлений туда-сюда!
-    // trying to solve it with loop controller
-
-
-    for (auto const & npcell : need_postprocess1){
-      loop_controller[npcell]++;
-      if (loop_controller[npcell] == 50){
-        flag = false;
-        break;
-      }
-      // get the cell's neighbors
-      std::vector<std::string> this_vicinity = cell_vecinity(npcell, 1);
-      // check if there is a lpp nearby
-      bool out_via_lpp = false;
-      for (auto const & vic_ind : this_vicinity){
-        // if the cell is lpp and has the same height with current npcell
-        if (std::find(lowest_pp_list.begin(), lowest_pp_list.end(), vic_ind)
-              != lowest_pp_list.end()
-              && geotab[vic_ind] == geotab[npcell]){
-              fdtab1[npcell] = vic_ind;
-          np_copy.erase(std::remove(np_copy.begin(),
-                                    np_copy.end(), vic_ind),
-                                    np_copy.end());
-          out_via_lpp = true;
-          break;
-        }
-      }
-      if (out_via_lpp){continue;}
+   bool flag = true;
+   while (np_copy.size() > 0 && flag == true){
+   // при такой схеме есть риск зациклиться из-за направлений туда-сюда!
+   // trying to solve it with loop controller
 
 
-      // calculate drops with neighbors
-      std::vector<double> drops;
-      double center_value = geotab[npcell];  // current cell height
-      // go via neighbors
-      for (auto const & vic_ind : this_vicinity){
-        double this_value = geotab[vic_ind];
-        double this_drop = center_value - this_value;
-        drops.push_back(this_drop);
-      }
-      // examine the drop values
-      double max_drop = *max_element(std::begin(drops),
-                                     std::end(drops));
-      int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
-
-      // recheck condition of zero drop and
-      // assigning direction in ambiguous situation
-      bool resolve_zd_problem = false;
-      if (max_drop == 0 && maxes_num > 1){
-
-        int i = 0;
-        for (auto const & element : drops){
-          if (element == max_drop){
-            std::string sosed_index = this_vicinity[i];
-            // if the neighbor has flow dir and it's not into this npcell
-            if (fdtab1.find(sosed_index) != fdtab1.end()){
-              if (fdtab1[sosed_index] != npcell &&
-                  fdtab1[sosed_index] != "zero_drops" &&
-                  fdtab1[sosed_index] != "undef"){
-                fdtab1[npcell] = sosed_index;
-                std::cout<<npcell<<"-"<<sosed_index<<std::endl;
-                resolve_zd_problem = true;
-                np_copy.erase(std::remove(np_copy.begin(),
-                                          np_copy.end(), npcell),
-                                          np_copy.end());
-                break;
-              }
-            }
-          }
-          i++;
-        }
-        std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
-      }else{
-        std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
-      }
-    }
-
-  }
+   for (auto const & npcell : need_postprocess1){
+   loop_controller[npcell]++;
+   if (loop_controller[npcell] == 50){
+   flag = false;
+   break;
+   }
+   // get the cell's neighbors
+   std::vector<std::string> this_vicinity = cell_vecinity(npcell, 1);
+   // check if there is a lpp nearby
+   bool out_via_lpp = false;
+   for (auto const & vic_ind : this_vicinity){
+   // if the cell is lpp and has the same height with current npcell
+   if (std::find(lowest_pp_list.begin(), lowest_pp_list.end(), vic_ind)
+   != lowest_pp_list.end()
+   && geotab[vic_ind] == geotab[npcell]){
+   fdtab1[npcell] = vic_ind;
+   np_copy.erase(std::remove(np_copy.begin(),
+   np_copy.end(), vic_ind),
+   np_copy.end());
+   out_via_lpp = true;
+   break;
+   }
+   }
+   if (out_via_lpp){continue;}
 
 
+   // calculate drops with neighbors
+   std::vector<double> drops;
+   double center_value = geotab[npcell];  // current cell height
+   // go via neighbors
+   for (auto const & vic_ind : this_vicinity){
+   double this_value = geotab[vic_ind];
+   double this_drop = center_value - this_value;
+   drops.push_back(this_drop);
+   }
+   // examine the drop values
+   double max_drop = *max_element(std::begin(drops),
+   std::end(drops));
+   int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
 
-  for (auto const & acell : w_lowest_pp){
-  std::cout<<acell.first<<","<<acell.second<<std::endl;
-}
+   // recheck condition of zero drop and
+   // assigning direction in ambiguous situation
+   bool resolve_zd_problem = false;
+   if (max_drop == 0 && maxes_num > 1){
+
+   int i = 0;
+   for (auto const & element : drops){
+   if (element == max_drop){
+   std::string sosed_index = this_vicinity[i];
+   // if the neighbor has flow dir and it's not into this npcell
+   if (fdtab1.find(sosed_index) != fdtab1.end()){
+   if (fdtab1[sosed_index] != npcell &&
+   fdtab1[sosed_index] != "zero_drops" &&
+   fdtab1[sosed_index] != "undef"){
+   fdtab1[npcell] = sosed_index;
+   std::cout<<npcell<<"-"<<sosed_index<<std::endl;
+   resolve_zd_problem = true;
+   np_copy.erase(std::remove(np_copy.begin(),
+   np_copy.end(), npcell),
+   np_copy.end());
+   break;
+   }
+   }
+   }
+   i++;
+   }
+   std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
+   }else{
+   std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
+   }
+   }
+
+   }
+
+
+
+   for (auto const & acell : w_lowest_pp){
+   std::cout<<acell.first<<","<<acell.second<<std::endl;
+   }
 
    */
 
 
-  return fdtab1;
-}
+  //return fdtab1;
+
+
+//}
 
 
 
