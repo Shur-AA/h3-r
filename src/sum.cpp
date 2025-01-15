@@ -2295,6 +2295,11 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   }
 
 
+  //geotab["88bc53553dfffff"] = 1258.7;
+  //geotab["88bc535531fffff"] = 1258.5;
+  //geotab["88bc535537fffff"] = 1258.04;
+  //geotab["88bc535523fffff"] = 1258.8;
+  //geotab["88bc535521fffff"] = 1258.1;
 
 
   // computing flow directions (Step 2)
@@ -2344,6 +2349,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     }
   }
 
+
   // Step 2.4
 
   // if there are cells with no direction and they are not edged
@@ -2388,13 +2394,112 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
           }
           i++;
         }
-        std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
       }else{
         std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
       }
     }
   }
 
+  // In fact, apparently due to the fact of look-up table rule absence,
+  // regularly we gaining flat areas of zero drops. They are usually comprising
+  // cells, which have as least one not-flat (not-zd) neighbor with grater height.
+  // They course loops while solving watershed filling task. The idea is to
+  // resolve them like flat areas later here with graphs, but we have to choose
+  // exit cell. It'll be a cell in the vicinity of the lowest of border cells of
+  // the zd area. We also slightly reduce its height.
+
+
+  //a. Get only cells with zero drops
+  std::unordered_map<std::string, std::string> first_zd_map = map_filter(fdtab, "zero_drops", true);
+  std::set<std::string> first_zd; // from map to list (set)
+  if (first_zd_map.size() > 0){
+    for (auto const & elmt : first_zd_map){
+      first_zd.insert(elmt.first);
+    }
+    //b. Go through zero drops
+    std::set<std::string> worked_out; // zd which have been seen
+    for (auto const & zdcell : first_zd){
+      //if hasn't worked yet
+      if (std::find(worked_out.begin(), worked_out.end(), zdcell) == worked_out.end()){
+        worked_out.insert(zdcell);
+        std::vector<std::string> this_vicinity = cell_vecinity(zdcell, 1);
+        std::set<std::string> this_team {zdcell}; // group of zd cells
+        double lowest_boundary_h = 10000.0;
+        std::string lowest_boundary_ind = zdcell; // for searching lowest cell
+        for (auto const & vic_ind : this_vicinity){
+          //if neighbor is also zd add it to the team
+          if (std::find(first_zd.begin(), first_zd.end(), vic_ind) != first_zd.end()){
+            this_team.insert(vic_ind);
+            worked_out.insert(vic_ind);
+          }else{
+            if (geotab[vic_ind] < lowest_boundary_h){
+              lowest_boundary_h = geotab[vic_ind];
+              lowest_boundary_ind = vic_ind;
+            }
+          }
+        }
+        // c. Collecting group of zd if found
+        if (this_team.size() > 1){ // we have a group
+          while (true){  // while the group is growing
+            int team_size = this_team.size();
+            for (auto const & acell : this_team){
+
+              std::vector<std::string> this_vicinity = cell_vecinity(acell, 1);
+              for (auto const & vic_ind : this_vicinity){
+                //if neighbor is also zd add it to the team
+                if (std::find(first_zd.begin(), first_zd.end(), vic_ind) != first_zd.end()){
+                  this_team.insert(vic_ind);
+                  worked_out.insert(vic_ind);
+                }else{
+                  if (geotab[vic_ind] < lowest_boundary_h){
+                    lowest_boundary_h = geotab[vic_ind];
+                    lowest_boundary_ind = vic_ind;
+                  }
+                }
+              }
+
+            }
+
+            if (this_team.size() == team_size){
+              break;
+            }
+          }
+
+
+          //d. Defining pp among zd group
+          std::string zdlpp = lowest_boundary_ind;
+          std::vector<std::string> this_vicinity = cell_vecinity(lowest_boundary_ind, 1);
+          for (auto const & vic_ind : this_vicinity){
+            if (std::find(first_zd.begin(), first_zd.end(), vic_ind) != first_zd.end()){
+              zdlpp = vic_ind;
+              //make this cell lower
+              double zdlpp_h = geotab[zdlpp];
+              geotab[zdlpp] = zdlpp_h - abs((geotab[lowest_boundary_ind] - zdlpp_h + 0.1) / 2);
+              break;
+            }
+          }
+
+          //f. Route flows
+          std::unordered_map<std::string, std::string> zd_group_for_graph;
+          for (auto const & acell : this_team){
+            zd_group_for_graph[acell] = zdlpp;
+          }
+
+          std::unique_ptr<stringgraph::Graph> h3graph = make_unique<stringgraph::Graph>(); // выделяем память
+          h3graph->make_graph(zd_group_for_graph); // создаем граф
+          std::unordered_map<std::string, std::string> pathmap = h3graph->find_path(zdlpp); // получаем результат
+          h3graph.reset(); // освобождаем память
+
+          for (auto const & elmt : pathmap){
+            fdtab[elmt.first] = elmt.second;
+          }
+
+        }
+      }
+
+    }
+
+  }
 
   // labeling watersheds (Step 3)
 
@@ -2482,6 +2587,23 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     }
   }
 
+  // removing duplicates from the pp list
+  std::sort(poor_points.begin(), poor_points.end());
+  poor_points.erase(unique(poor_points.begin(), poor_points.end()), poor_points.end());
+
+  //for (auto const & acell : geotab){
+
+    //if (acell.first == "88bc535523fffff")
+    //std::cout<<"88bc535523fffff is in geotab"<<std::endl;
+
+    //if (watersheds.find(acell.first) == watersheds.end() &&
+      //  (std::find(ecells.begin(), ecells.end(), acell.first) == ecells.end())){
+      //std::cout<<"Catch 88bc535523fffff"<<std::endl;
+      //watersheds["88bc535523fffff"] = watersheds["88bc53552bfffff"];
+    //}
+  //}
+
+
 
   // Determining pp between watersheds (Step 4)
 
@@ -2501,7 +2623,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     for (auto const & vic_ind : this_vicinity){
       if (watersheds.find(vic_ind) != watersheds.end()){
         if (center_mark != watersheds[vic_ind]){
-          // so, we are on a border
+          // so, we are on the border of a watershed
           double neighbour_h = geotab[vic_ind]; // this neighbor cell height
           int this_mark = watersheds[vic_ind];  // this neighbor cell watershed
           std::string heigher_cell_index = acell.first;
@@ -2568,6 +2690,11 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     w_lowest_pp[m] = lowest_pp_ind;
 
   }
+  for (auto const & abc : w_lowest_pp){
+    std::cout<<abc.first<<"-"<<abc.second<<std::endl;
+  }
+
+
   // analyzing pp paths (Step 6)
   // merging and filling depressions (Step 7)
 
@@ -2580,13 +2707,26 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   for (auto const & pp : poor_points){
     if (std::find(ecells.begin(), ecells.end(), pp) != ecells.end()){
       exit_watersheds.push_back(watersheds[pp]);
+      std::cout<<pp<<std::endl;
     }
   }
 
-
+/*
   for (auto const & pwp : exit_watersheds){
     std::cout<<pwp<<"[->"<<std::endl;
   }
+
+  for (auto const & pwp : poor_points){
+    std::cout<<pwp<<std::endl;
+  }
+
+
+  for (auto const & wnum : w_lowest_pp){
+    if (wnum.second == "88bcea2db5fffff"){
+      w_lowest_pp[wnum.first] = "88bccc974bfffff";
+    }
+  }
+  */
 
 
   // go through watersheds one by one
@@ -2594,10 +2734,15 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   // watersheds, that were aggregated and no more alive
   std::vector<int> nonexisting_w;
 
+  int numerator = 1;
+
   bool smth_changed = true;
   while (smth_changed){
+    std::cout<<"New loop from: "<<numerator<<std::endl;
+    //if (numerator > 2000){break;}
     smth_changed = false;
     for (auto const & wnum : w_lowest_pp){
+      //std::cout<<"lpp:: "<<wnum.first<<std::endl;
       // if there is non-exit and existing watershed
       if (std::find(exit_watersheds.begin(), exit_watersheds.end(),
                     wnum.first) == exit_watersheds.end() &&
@@ -2625,7 +2770,8 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
         // check if second watershed has the same lpp
         // if yes - unite them, if not - fill only first watershed
         if (wnum.second != w_lowest_pp[second_watershed]){
-          std::cout<<wnum.first<<" filling with "<<filling_height<<std::endl;
+          std::cout<<numerator<<" "<<wnum.first<<" filling with "<<filling_height<<std::endl;
+          ++numerator;
           for (auto const & acell : watersheds){
             if (acell.second == wnum.first){
               if (geotab[acell.first] < filling_height){
@@ -2635,7 +2781,8 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
           }
         }else{
           // making union from two watersheds
-          std::cout<<wnum.first<<"+"<<second_watershed<<std::endl;
+          std::cout<<numerator<<" "<<wnum.first<<"+"<<second_watershed<<std::endl;
+          ++numerator;
           ++max_w_mark;
           smth_changed = true;
           // for cells comprising aggregated watershed for simple calling
@@ -2722,15 +2869,13 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
             w_lowest_pp[max_w_mark] = lowest_pp_ind;
 
           }
+
+          std::cout<<"New id is "<<max_w_mark<<"-"<<w_lowest_pp[max_w_mark]<<std::endl;
+
         }
       }
     }
   }
-
-
-
-
-
 
   // computing flow directions (Step 2)
   std::unordered_map <std::string, std::string> fdtab1; // tab of flow directions
@@ -2777,6 +2922,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
         fdtab1[acell.first] = "zero_drops";
         need_postprocess1.push_back(acell.first);
         np_copy.push_back(acell.first);
+
       }
     }
   }
@@ -2793,6 +2939,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     if (std::find(nonexisting_w.begin(), nonexisting_w.end(), elm.first)
           == nonexisting_w.end()){
       lowest_pp_list.push_back(elm.second);
+      std::cout<<elm.second<<std::endl;
     }
   }
 
@@ -2804,9 +2951,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   std::unordered_map<std::string, std::string> zdtab;
   for (auto const & np : need_postprocess1){
     zdtab[np] = w_lowest_pp[watersheds[np]];
-    if (np == "88ada23013fffff"){
-      std::cout<<w_lowest_pp[watersheds[np]]<<"-"<<watersheds[np]<<std::endl;
-    }
   }
 
 
@@ -2867,6 +3011,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   }
 
   return fdtab1;
+
 }
 
 

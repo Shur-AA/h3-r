@@ -11,8 +11,8 @@ library(data.table)
 
 
 options(scipen=999)
-rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa_orange.tif"
-rpath = "D:/3_Проекты/РФФИ сток/data/gebco_orange.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa60_1.tif"
+#rpath = "D:/3_Проекты/РФФИ сток/data/gebco_orange.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
 
@@ -76,7 +76,7 @@ start_h3_l = choose_h3_level(initial_resolution)
 rast_extent = raster_to_bbox(rast)
 hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
                                        rast_extent$lat_p,
-                                       3, start_h3_l) %>%
+                                       1, start_h3_l) %>%
   do.call(rbind, .) %>%
   as.data.frame()
 hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
@@ -85,9 +85,9 @@ rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 
 
-for (h in c(5, 7, 6)){
+for (h in c(12, 13, 16)){
   print(h)
-  h = 40
+  #h = 105
   start.time <- Sys.time()
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
@@ -109,7 +109,7 @@ for (h in c(5, 7, 6)){
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 6000) %>%
+              st_buffer(dist = 100000) %>%
               st_transform(crs = 4326)
 
 
@@ -119,9 +119,10 @@ for (h in c(5, 7, 6)){
 
 
   #rast = st_transform(rast, 4326)
+  #tab = h3::h3_raster_to_hex(rast, 8) %>% na.omit()
   # конвертируем его в сетку
   tab = h3::h3_raster_to_hex(tile, start_h3_l) %>% na.omit()
-  #tab = h3::h3_raster_to_hex(rast, 8)
+  #
   # выбираем исходным шестиугольником только те ячейки, чьи узлы в него попадают
   tab_pnt = st_as_sf(tab, coords = c('x', 'y'), crs = 4326)
   tab1 = tab_pnt[pol,]
@@ -137,7 +138,6 @@ for (h in c(5, 7, 6)){
   end.time <- Sys.time()
   time.taken <- end.time - start.time
   time.taken
-
 
 
   write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
@@ -157,7 +157,7 @@ for (h in c(5, 7, 6)){
 
 }
 
-
+write.csv(fdem, 'C:/Users/user/Downloads/gidro/vvv.csv')
 # Эксперимент с расширяющейся областью (от ячейки 1010 l3)
 start_tile = 1010
 hex_dem = h3::h3_raster_to_hex(rast, 8)
