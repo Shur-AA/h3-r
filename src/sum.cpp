@@ -1749,7 +1749,7 @@ std::map <std::string, std::string> drainage(std::vector<std::string> & inds,
 
 
 
-// Calculates water flow accumulation on flow direction table (from-to)
+// Calculates water flow accumulation on flow direction table (from-to) [my]
 
 
 // [[Rcpp::export]]
@@ -2294,14 +2294,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     }
   }
 
-
-  //geotab["88bc53553dfffff"] = 1258.7;
-  //geotab["88bc535531fffff"] = 1258.5;
-  //geotab["88bc535537fffff"] = 1258.04;
-  //geotab["88bc535523fffff"] = 1258.8;
-  //geotab["88bc535521fffff"] = 1258.1;
-
-
   // computing flow directions (Step 2)
   std::unordered_map <std::string, std::string> fdtab; // tab of flow directions
   std::vector<std::string> need_postprocess;
@@ -2591,20 +2583,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
   std::sort(poor_points.begin(), poor_points.end());
   poor_points.erase(unique(poor_points.begin(), poor_points.end()), poor_points.end());
 
-  //for (auto const & acell : geotab){
-
-    //if (acell.first == "88bc535523fffff")
-    //std::cout<<"88bc535523fffff is in geotab"<<std::endl;
-
-    //if (watersheds.find(acell.first) == watersheds.end() &&
-      //  (std::find(ecells.begin(), ecells.end(), acell.first) == ecells.end())){
-      //std::cout<<"Catch 88bc535523fffff"<<std::endl;
-      //watersheds["88bc535523fffff"] = watersheds["88bc53552bfffff"];
-    //}
-  //}
-
-
-
   // Determining pp between watersheds (Step 4)
 
   // here is watersheds table consisting of 4 vectors
@@ -2690,10 +2668,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     w_lowest_pp[m] = lowest_pp_ind;
 
   }
-  for (auto const & abc : w_lowest_pp){
-    std::cout<<abc.first<<"-"<<abc.second<<std::endl;
-  }
-
 
   // analyzing pp paths (Step 6)
   // merging and filling depressions (Step 7)
@@ -2710,23 +2684,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
       std::cout<<pp<<std::endl;
     }
   }
-
-/*
-  for (auto const & pwp : exit_watersheds){
-    std::cout<<pwp<<"[->"<<std::endl;
-  }
-
-  for (auto const & pwp : poor_points){
-    std::cout<<pwp<<std::endl;
-  }
-
-
-  for (auto const & wnum : w_lowest_pp){
-    if (wnum.second == "88bcea2db5fffff"){
-      w_lowest_pp[wnum.first] = "88bccc974bfffff";
-    }
-  }
-  */
 
 
   // go through watersheds one by one
@@ -2988,7 +2945,6 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
                   && (n_vic_ind != lpp)){
               zd_group.push_back(n_vic_ind);
               zdtab[vic_ind] = lpp;
-              std::cout<<vic_ind<<"-"<<lpp<<std::endl;
               break;
             }
           }
@@ -3017,104 +2973,139 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
 
 
 
-  /*
 
-   // this is initial algorihm, which unfortunately leads to loops
-   // consisting not only of 3 cells, but greater
+// Generalization of flow directions by COTAT method
+// needs h3 indexes from-to,
+// level, to which upscale the dataset, and the threshold
 
-   bool flag = true;
-   while (np_copy.size() > 0 && flag == true){
-   // при такой схеме есть риск зациклиться из-за направлений туда-сюда!
-   // trying to solve it with loop controller
+// [[Rcpp::export]]
+std::unordered_map<std::string, std::string> cotat(std::vector<std::string> & ifrom,
+                                                   std::vector<std::string> & ito,
+                                                   const int to_level,
+                                                   const int area_threshold){
+  std::unordered_map <std::string, std::string> fdtab; // resulting tab
+  // define fine level
+  int h3_level = h3GetResolution(stringToH3(ifrom[0].std::string::c_str()));
 
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = ifrom.size();
 
-   for (auto const & npcell : need_postprocess1){
-   loop_controller[npcell]++;
-   if (loop_controller[npcell] == 50){
-   flag = false;
-   break;
-   }
-   // get the cell's neighbors
-   std::vector<std::string> this_vicinity = cell_vecinity(npcell, 1);
-   // check if there is a lpp nearby
-   bool out_via_lpp = false;
-   for (auto const & vic_ind : this_vicinity){
-   // if the cell is lpp and has the same height with current npcell
-   if (std::find(lowest_pp_list.begin(), lowest_pp_list.end(), vic_ind)
-   != lowest_pp_list.end()
-   && geotab[vic_ind] == geotab[npcell]){
-   fdtab1[npcell] = vic_ind;
-   np_copy.erase(std::remove(np_copy.begin(),
-   np_copy.end(), vic_ind),
-   np_copy.end());
-   out_via_lpp = true;
-   break;
-   }
-   }
-   if (out_via_lpp){continue;}
+  std::map <std::string, std::string> fromto; // table of fine flow directions
+  // geotab[ifrom[i]] = 0; // to fill with 0's source cells
 
+  // list of coarser cells
+  std::set<std::string> coarse_net;
 
-   // calculate drops with neighbors
-   std::vector<double> drops;
-   double center_value = geotab[npcell];  // current cell height
-   // go via neighbors
-   for (auto const & vic_ind : this_vicinity){
-   double this_value = geotab[vic_ind];
-   double this_drop = center_value - this_value;
-   drops.push_back(this_drop);
-   }
-   // examine the drop values
-   double max_drop = *max_element(std::begin(drops),
-   std::end(drops));
-   int maxes_num = std::count(drops.begin(), drops.end(), max_drop);
-
-   // recheck condition of zero drop and
-   // assigning direction in ambiguous situation
-   bool resolve_zd_problem = false;
-   if (max_drop == 0 && maxes_num > 1){
-
-   int i = 0;
-   for (auto const & element : drops){
-   if (element == max_drop){
-   std::string sosed_index = this_vicinity[i];
-   // if the neighbor has flow dir and it's not into this npcell
-   if (fdtab1.find(sosed_index) != fdtab1.end()){
-   if (fdtab1[sosed_index] != npcell &&
-   fdtab1[sosed_index] != "zero_drops" &&
-   fdtab1[sosed_index] != "undef"){
-   fdtab1[npcell] = sosed_index;
-   std::cout<<npcell<<"-"<<sosed_index<<std::endl;
-   resolve_zd_problem = true;
-   np_copy.erase(std::remove(np_copy.begin(),
-   np_copy.end(), npcell),
-   np_copy.end());
-   break;
-   }
-   }
-   }
-   i++;
-   }
-   std::cout<<"About zd task:"<<resolve_zd_problem<<std::endl;
-   }else{
-   std::cout<<"Can't solve zero drop task: false condition"<<std::endl;
-   }
-   }
-
-   }
+  // fill supportive structure and coarser net list
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+    coarse_net.insert(H3_to_parent(ifrom[i], to_level));
+  }
 
 
-
-   for (auto const & acell : w_lowest_pp){
-   std::cout<<acell.first<<","<<acell.second<<std::endl;
-   }
-
-   */
+  // Get flow accumulation table (NB: why not get as a parameter?)
+  std::map <std::string, double> flowacc = flow_acc(ifrom, ito);
 
 
-  //return fdtab1;
+  // searching for outlet pixels in every coarse cell
+
+  std::unordered_map <std::string, std::string> outlets;
+  std::unordered_map <std::string, double> exit_cell_acc;
+  for (auto const & elmt : coarse_net){
+
+    // take all children
+    std::vector<std::string> incell_pix;
+    H3Index h3 = stringToH3(elmt.std::string::c_str());
+    int nn = maxH3ToChildrenSize(h3, h3_level);  // define maximum number of the hex's children
+    H3Index* h3Children = new H3Index[n];  // vector for children
+    h3ToChildren(h3, h3_level, h3Children);
+    for (int j = 0; j < nn; ++j) {
+      char h3Str[17];
+      h3ToString(h3Children[j], h3Str, sizeof(h3Str));
+      incell_pix.push_back(h3Str);
+    }
+    delete[] h3Children;
+
+    std::string current_exit_ind = "default";
+    double current_exit_fa = 0.1;
+
+    // find edged from children and
+    // search for the cell with greatest acc value
+    for (auto const & acell : incell_pix){
+      std::vector<std::string> this_vecinity = cell_vecinity(acell, 1); // current cell immediate neighbors
+      // structure for edge searching
+      bool is_edged = false;
+
+      for (auto const & vec_ind : this_vecinity){
+        if (std::find(incell_pix.begin(), incell_pix.end(), vec_ind)
+              == incell_pix.end()){
+          is_edged = true;
+          break;
+        }
+       }
+
+      if (is_edged){
+        if (flowacc[acell] > current_exit_fa){
+          current_exit_fa = flowacc[acell];
+          current_exit_ind = acell;
+        }
+      }
+    }
+
+    outlets[elmt] = current_exit_ind;
+    exit_cell_acc[current_exit_ind] = current_exit_fa;
+
+    //flowacc.clear();
+
+  }
+
+  // follow the path from each coarse cell
+  for (auto const & elmt : outlets){
+    std::cout<<"-"<<elmt.first<<std::endl;
+    // get neighbors - potential destinations
+    std::vector<std::string> destinations = cell_vecinity(elmt.first, 1);
+    // list of cells from the vicinity which have been visited
+    std::vector<std::string> visited_cells{elmt.first};
+    // get information about first outlet
+    std::string start_exit_ind = elmt.second;
+    double increment = 0.0 - exit_cell_acc[elmt.second];
+    std::cout<<"+"<<increment<<std::endl;
+    std::cout<<"fa-"<<exit_cell_acc[elmt.second]<<std::endl;
+    while (true){
+      // find out, to which cell the current flows
+      if (fromto.find(start_exit_ind) != fromto.end()){
+        std::string next_parent = H3_to_parent(fromto[start_exit_ind], to_level);
+        std::cout<<next_parent<<std::endl;
+        // if the next parent is in the cell vicinity, add it to the list
+        if (std::find(destinations.begin(), destinations.end(), next_parent) != destinations.end()){
+          visited_cells.push_back(next_parent);
+        }
+        double next_fa = exit_cell_acc[outlets[next_parent]];
+        increment += next_fa;
+        std::cout<<"+"<<increment<<std::endl;
+        if (increment > area_threshold){
+          fdtab[elmt.first] = visited_cells.back();
+          break;
+        } else{
+          start_exit_ind = next_parent;
+        }
+      }else{
+        break;
+      }
+
+    }
 
 
-//}
+
+  }
+  return fdtab;
+}
 
 
 

@@ -625,6 +625,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cotat
+std::unordered_map<std::string, std::string> cotat(std::vector<std::string>& ifrom, std::vector<std::string>& ito, const int to_level, const int area_threshold);
+RcppExport SEXP _h3_cotat(SEXP ifromSEXP, SEXP itoSEXP, SEXP to_levelSEXP, SEXP area_thresholdSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito(itoSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    Rcpp::traits::input_parameter< const int >::type area_threshold(area_thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(cotat(ifrom, ito, to_level, area_threshold));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -678,6 +692,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_flow_dir_pf", (DL_FUNC) &_h3_flow_dir_pf, 2},
     {"_h3_fill_depr_Planchon", (DL_FUNC) &_h3_fill_depr_Planchon, 2},
     {"_h3_fill_depr_jd", (DL_FUNC) &_h3_fill_depr_jd, 2},
+    {"_h3_cotat", (DL_FUNC) &_h3_cotat, 4},
     {NULL, NULL, 0}
 };
 

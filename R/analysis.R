@@ -273,12 +273,32 @@ h3_flow_dir <- function(inds, z, start_cell) {
 
 
 
+
+#' Calculates water flow directions and fills depressions
+#' needs h3 indexes and corresponding heights
+#' Jenson-Domingue
+#'
+#'
+#' @param inds vector of H3 indexes
+#' @param z corresponding heights
+#'
+#'
+#' @return map of H3 indexes and cell's accumulation value
+#'
+#' @export
+h3_fill_depr_jd <- function(inds, z) {
+  fill_depr_jd(inds, z)
+}
+
+
+
+
 #' Calculates water flow accumulation from flow direction table
 #'
 #'
 #'
-#' @param ifrom vector of H3 indexes
-#' @param ito corresponding heights
+#' @param ifrom vector of H3 indexes from where flow starts
+#' @param ito vector of H3 indexes to where it goes
 #'
 #'
 #' @return map of H3 indexes and cell's accumulation value

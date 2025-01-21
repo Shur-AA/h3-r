@@ -76,7 +76,7 @@ start_h3_l = choose_h3_level(initial_resolution)
 rast_extent = raster_to_bbox(rast)
 hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
                                        rast_extent$lat_p,
-                                       1, start_h3_l) %>%
+                                       3, start_h3_l) %>%
   do.call(rbind, .) %>%
   as.data.frame()
 hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
@@ -87,7 +87,7 @@ rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 for (h in c(12, 13, 16)){
   print(h)
-  #h = 105
+  h = 1012
   start.time <- Sys.time()
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
@@ -109,7 +109,7 @@ for (h in c(12, 13, 16)){
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 100000) %>%
+              st_buffer(dist = 50000) %>%
               st_transform(crs = 4326)
 
 
@@ -156,6 +156,26 @@ for (h in c(12, 13, 16)){
   time.taken
 
 }
+
+# COTAT testing
+library(dplyr)
+library(stars)
+library(sf)
+library(tidyverse)
+library(akima)
+library(tidyr)
+library(readxl)
+library(RPostgres)
+library(Matrix)
+library(data.table)
+
+fd = read.csv('C:/Users/user/Downloads/gidro/fd1012.csv')
+fd = select(fd, from, to)
+cfd = h3:::cotat(fd$from, fd$to, 6, 10)
+
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/cotat6.csv')
+
+
 
 write.csv(fdem, 'C:/Users/user/Downloads/gidro/vvv.csv')
 # Эксперимент с расширяющейся областью (от ячейки 1010 l3)

@@ -256,3 +256,7 @@ fill_depr_jd <- function(inds, z) {
     .Call(`_h3_fill_depr_jd`, inds, z)
 }
 
+cotat <- function(ifrom, ito, to_level, area_threshold) {
+    .Call(`_h3_cotat`, ifrom, ito, to_level, area_threshold)
+}
+
