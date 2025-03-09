@@ -260,3 +260,15 @@ cotat <- function(ifrom, ito, to_level, area_threshold) {
     .Call(`_h3_cotat`, ifrom, ito, to_level, area_threshold)
 }
 
+nsa <- function(h3ind, fa_val, to_level) {
+    .Call(`_h3_nsa`, h3ind, fa_val, to_level)
+}
+
+vvrfra <- function(ifrom, ito, to_level) {
+    .Call(`_h3_vvrfra`, ifrom, ito, to_level)
+}
+
+dren_tree <- function(ifrom, ito) {
+    .Call(`_h3_dren_tree`, ifrom, ito)
+}
+

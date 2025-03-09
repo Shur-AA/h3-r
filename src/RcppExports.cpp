@@ -639,6 +639,44 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// nsa
+std::unordered_map<std::string, std::string> nsa(std::vector<std::string>& h3ind, std::vector<int>& fa_val, const int to_level);
+RcppExport SEXP _h3_nsa(SEXP h3indSEXP, SEXP fa_valSEXP, SEXP to_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type h3ind(h3indSEXP);
+    Rcpp::traits::input_parameter< std::vector<int>& >::type fa_val(fa_valSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(nsa(h3ind, fa_val, to_level));
+    return rcpp_result_gen;
+END_RCPP
+}
+// vvrfra
+std::unordered_map<std::string, std::string> vvrfra(std::vector<std::string>& ifrom, std::vector<std::string>& ito, const int to_level);
+RcppExport SEXP _h3_vvrfra(SEXP ifromSEXP, SEXP itoSEXP, SEXP to_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito(itoSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(vvrfra(ifrom, ito, to_level));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dren_tree
+std::unordered_map<std::string, int> dren_tree(std::vector<std::string>& ifrom, std::vector<std::string>& ito);
+RcppExport SEXP _h3_dren_tree(SEXP ifromSEXP, SEXP itoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito(itoSEXP);
+    rcpp_result_gen = Rcpp::wrap(dren_tree(ifrom, ito));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_h3_rcpp_hex_ring", (DL_FUNC) &_h3_rcpp_hex_ring, 2},
@@ -693,6 +731,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_fill_depr_Planchon", (DL_FUNC) &_h3_fill_depr_Planchon, 2},
     {"_h3_fill_depr_jd", (DL_FUNC) &_h3_fill_depr_jd, 2},
     {"_h3_cotat", (DL_FUNC) &_h3_cotat, 4},
+    {"_h3_nsa", (DL_FUNC) &_h3_nsa, 3},
+    {"_h3_vvrfra", (DL_FUNC) &_h3_vvrfra, 3},
+    {"_h3_dren_tree", (DL_FUNC) &_h3_dren_tree, 2},
     {NULL, NULL, 0}
 };
 

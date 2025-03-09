@@ -171,9 +171,40 @@ library(data.table)
 
 fd = read.csv('C:/Users/user/Downloads/gidro/fd1012.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 6, 10)
+dt = h3:::dren_tree(fd$from, fd$to)
+write.csv(dt, 'C:/Users/user/Downloads/gidro/drent1.csv')
 
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/cotat6.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/fd1012.csv')
+fd = select(fd, from, to)
+cfd = h3:::vvrfra(fd$from, fd$to, 5)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/vvrfra_2.csv')
+
+fa = read.csv('C:/Users/user/Downloads/gidro/fa1012.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+cfd = h3:::nsa(fa$ind, fa$val, 6)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/nsa3.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/fd1012.csv')
+fd = select(fd, from, to)
+cfd = h3:::cotat(fd$from, fd$to, 5, 10000)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/cotat_01.csv')
+
+
+
+
+
+
+
+
+fdem = read.csv('C:/Users/user/Downloads/gidro/cotat11.csv')
+colnames(fdem) = c('from', 'to')
+fdem = filter(fdem, to != 'edge')
+fa = h3::h3_flow_acc(fdem$from, fdem$to)
+write.csv(fa,'C:/Users/user/Downloads/gidro/fa_11.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/fa_11.csv') %>%
+  filter(`x` > 1)
+write.csv(fa,'C:/Users/user/Downloads/gidro/fa_11.csv')
 
 
 

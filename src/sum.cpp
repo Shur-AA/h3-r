@@ -3060,14 +3060,10 @@ std::unordered_map<std::string, std::string> cotat(std::vector<std::string> & if
 
     outlets[elmt] = current_exit_ind;
     exit_cell_acc[current_exit_ind] = current_exit_fa;
-
-    //flowacc.clear();
-
   }
 
   // follow the path from each coarse cell
   for (auto const & elmt : outlets){
-    std::cout<<"-"<<elmt.first<<std::endl;
     // get neighbors - potential destinations
     std::vector<std::string> destinations = cell_vecinity(elmt.first, 1);
     // list of cells from the vicinity which have been visited
@@ -3075,8 +3071,6 @@ std::unordered_map<std::string, std::string> cotat(std::vector<std::string> & if
     // get information about first outlet
     std::string start_exit_ind = elmt.second;
     double increment = 0.0 - exit_cell_acc[elmt.second];
-    std::cout<<"+"<<increment<<std::endl;
-    std::cout<<"fa-"<<exit_cell_acc[elmt.second]<<std::endl;
     while (true){
       // find out, to which cell the current flows
       if (fromto.find(start_exit_ind) != fromto.end()){
@@ -3088,12 +3082,11 @@ std::unordered_map<std::string, std::string> cotat(std::vector<std::string> & if
         }
         double next_fa = exit_cell_acc[outlets[next_parent]];
         increment += next_fa;
-        std::cout<<"+"<<increment<<std::endl;
         if (increment > area_threshold){
           fdtab[elmt.first] = visited_cells.back();
           break;
         } else{
-          start_exit_ind = next_parent;
+          start_exit_ind = outlets[next_parent];
         }
       }else{
         break;
@@ -3101,12 +3094,323 @@ std::unordered_map<std::string, std::string> cotat(std::vector<std::string> & if
 
     }
 
-
-
   }
   return fdtab;
 }
 
+
+
+
+
+// Generalization of flow directions by NSA method
+// needs flow accumulation table,
+// level, to which upscale the dataset
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, std::string> nsa(std::vector<std::string> & h3ind,
+                                                 std::vector<int> & fa_val,
+                                                 const int to_level){
+  std::unordered_map <std::string, std::string> fdtab; // resulting tab
+  // define fine level
+  int h3_level = h3GetResolution(stringToH3(h3ind[0].std::string::c_str()));
+
+  try{
+    if (h3ind.size() != fa_val.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+
+  // list of coarser cells
+  std::set<std::string> coarse_net;
+  // unordered map of coarser cells and max accumulation in them
+  std::unordered_map<std::string, double> coarse_fa;
+
+  // fill coarser net list
+  for (auto const & elmt : h3ind){
+    coarse_net.insert(H3_to_parent(elmt, to_level));
+  }
+
+  // searching for max fa in coarse cells
+  for (auto const & elmt : coarse_net){
+    // get its children
+    std::vector <std::string> childtab;
+
+    H3Index h3 = stringToH3(elmt.std::string::c_str());
+    int n = maxH3ToChildrenSize(h3, h3_level);  // define maximum number of the hex's children
+    H3Index* h3Children = new H3Index[n];  // vector for children
+    h3ToChildren(h3, h3_level, h3Children);
+    for (int j = 0; j < n; ++j) {
+      char h3Str[17];
+      h3ToString(h3Children[j], h3Str, sizeof(h3Str));
+      childtab.push_back(h3Str);
+    }
+    delete[] h3Children;
+
+    double max_fa = 0.1;
+    for (auto const & child : childtab){
+
+      if (std::find(h3ind.begin(), h3ind.end(), child)
+          != h3ind.end()){
+        auto elnum = std::find(h3ind.begin(), h3ind.end(), child) - h3ind.begin();
+        if (fa_val[elnum] > max_fa){
+          max_fa = fa_val[elnum];
+        }
+      }
+    }
+    coarse_fa[elmt] = max_fa;
+  }
+ // put D6 on fa
+ for (auto const & acell : coarse_net){
+   // get the cell's neighbors
+   std::vector<std::string> this_vicinity = cell_vecinity(acell, 1);
+   // calculate drops with neighbors
+   double center_value = coarse_fa[acell];  // current cell height
+   double diff = 0.9;
+   // go via neighbors
+   for (auto const & vic_ind : this_vicinity){
+     if (coarse_fa[vic_ind] - center_value > diff){
+       fdtab[acell] = vic_ind;
+       diff = coarse_fa[vic_ind] - center_value;
+     }
+   }
+
+ }
+ return fdtab;
+}
+
+
+
+
+
+// Generalization of flow directions by VVRFRA method
+// needs h3 indexes from-to,
+// level, to which upscale the dataset
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, std::string> vvrfra(std::vector<std::string> & ifrom,
+                                                    std::vector<std::string> & ito,
+                                                    const int to_level){
+  std::unordered_map <std::string, std::string> fdtab; // resulting tab
+  // define fine level
+  int h3_level = h3GetResolution(stringToH3(ifrom[0].std::string::c_str()));
+
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+  int n = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of fine flow directions
+
+  // list of coarser cells
+  std::set<std::string> coarse_net;
+
+  // fill supportive structure and coarser net list
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+    coarse_net.insert(H3_to_parent(ifrom[i], to_level));
+  }
+
+
+  // Get flow accumulation table (NB: why not get as a parameter?)
+  std::map <std::string, double> flowacc = flow_acc(ifrom, ito);
+
+
+  // searching for outlet pixels in every coarse cell
+
+  std::unordered_map <std::string, std::string> outlets;
+  std::unordered_map <std::string, double> exit_cell_acc;
+  for (auto const & elmt : coarse_net){
+
+    // take all children
+    std::vector<std::string> incell_pix;
+    H3Index h3 = stringToH3(elmt.std::string::c_str());
+    int nn = maxH3ToChildrenSize(h3, h3_level);  // define maximum number of the hex's children
+    H3Index* h3Children = new H3Index[n];  // vector for children
+    h3ToChildren(h3, h3_level, h3Children);
+    for (int j = 0; j < nn; ++j) {
+      char h3Str[17];
+      h3ToString(h3Children[j], h3Str, sizeof(h3Str));
+      incell_pix.push_back(h3Str);
+    }
+    delete[] h3Children;
+
+    std::string current_exit_ind = "default";
+    double current_exit_fa = 0.1;
+
+    // find edged from children and
+    // search for the cell with greatest acc value
+    for (auto const & acell : incell_pix){
+      std::vector<std::string> this_vecinity = cell_vecinity(acell, 1); // current cell immediate neighbors
+      // structure for edge searching
+      bool is_edged = false;
+
+      for (auto const & vec_ind : this_vecinity){
+        if (std::find(incell_pix.begin(), incell_pix.end(), vec_ind)
+              == incell_pix.end()){
+          is_edged = true;
+          break;
+        }
+      }
+
+      if (is_edged){
+        if (flowacc[acell] > current_exit_fa){
+          current_exit_fa = flowacc[acell];
+          current_exit_ind = acell;
+        }
+      }
+    }
+
+    outlets[elmt] = current_exit_ind;
+    exit_cell_acc[current_exit_ind] = current_exit_fa;
+  }
+
+  // follow the path from each coarse cell
+  for (auto const & elmt : outlets){
+    if (fromto.find(elmt.second) != fromto.end()){
+      std::string next_parent = H3_to_parent(fromto[elmt.second], to_level);
+      fdtab[elmt.first] = next_parent;
+    }
+  }
+
+  return fdtab;
+}
+
+
+
+
+
+// Reconstruction and ordering of flows
+// as the first step of verification
+// uses flow accumulation as in-data
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
+                                               std::vector<std::string> & ito){
+  std::unordered_map <std::string, int> ftab; // resulting tab
+
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of fine flow directions
+
+  // fill supportive structure
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+  }
+
+
+  // Get flow accumulation table (NB: why not get as a parameter?)
+  std::map <std::string, double> flowacc = flow_acc(ifrom, ito);
+
+
+  // make max_heap priority queue
+  std::priority_queue<std::pair<double, std::string>> fq; // fa queue
+
+  // filling pq
+  for (auto const & elmt : flowacc){
+    fq.push(make_pair(elmt.second, elmt.first));
+  }
+
+  // flow number controller
+  int current_fnum = 1;
+
+  // go through queue
+  while(!fq.empty()){
+    // get first cell in the queue - with max fa
+    std::pair<double, std::string> max_fa = fq.top();
+    fq.pop();
+
+    // if it is not marked yet
+    if (ftab.find(max_fa.second) == ftab.end()){
+      ftab[max_fa.second] = current_fnum;
+      // then find who contribute to the cell
+      std::string this_max_ind = max_fa.second; // the cell from neighbors with max fa
+      std::string focus_ind = max_fa.second;
+      double this_max_fa = 0.0; // corresponding fa
+
+      while(true){
+        // looking only through immediate neighbors
+        std::vector<std::string> this_vecinity = cell_vecinity(focus_ind, 1);
+        // check them in fromto (flow dir) table
+        for (auto const & vec_ind : this_vecinity){
+          if (fromto.find(vec_ind) != fromto.end() && ftab.find(vec_ind) == ftab.end()){
+            if (fromto[vec_ind] == focus_ind){
+              if (flowacc.find(vec_ind) != flowacc.end()){
+                if (flowacc[vec_ind] >= this_max_fa){
+                  this_max_fa = flowacc[vec_ind];
+                  this_max_ind = vec_ind;
+                }
+              }
+            }
+          }
+        }
+        ftab[this_max_ind] = current_fnum;
+        focus_ind = this_max_ind;
+        if (this_max_fa < 1){
+          current_fnum++;
+          break;
+        }else{this_max_fa = 0.0;}
+      }
+    }
+  }
+  return ftab;
+  }
+
+
+
+
+
+// Reconstruction and ordering of flows
+// as the first step of verification
+// uses flow accumulation as in-data
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
+                                               std::vector<std::string> & ito){
+  std::unordered_map <std::string, int> ftab; // resulting tab
+
+  try{
+    if (ifrom.size() != ito.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of fine flow directions
+
+  // fill supportive structure
+  for (int i = 0; i < n; i++){
+    fromto[ifrom[i]] = ito[i];
+  }
+
+
+  // Get flow accumulation table (NB: why not get as a parameter?)
+  std::map <std::string, double> flowacc = flow_acc(ifrom, ito);
+
+
+
+
+
+
+ return ftab;
+}
 
 
 
