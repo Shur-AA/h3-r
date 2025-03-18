@@ -3367,6 +3367,7 @@ std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
       }
     }
   }
+  ftab["max_num"] = current_fnum;
   return ftab;
   }
 
@@ -3374,44 +3375,128 @@ std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
 
 
 
-// Reconstruction and ordering of flows
-// as the first step of verification
-// uses flow accumulation as in-data
+// Second step of verification
+// uses fine and coarse from-to tabs as in-data
 
 // [[Rcpp::export]]
-std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
-                                               std::vector<std::string> & ito){
-  std::unordered_map <std::string, int> ftab; // resulting tab
+std::unordered_map<int, int> generalisation_verification(std::vector<std::string> & ifrom_fine,
+                                                         std::vector<std::string> & ito_fine,
+                                                         std::vector<std::string> & ifrom_coarse,
+                                                         std::vector<std::string> & ito_coarse){
+  std::unordered_map <int, int> vertab; // resulting tab
 
   try{
-    if (ifrom.size() != ito.size()){
+    if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
       throw 2; // not equal lengths exception
     }}
   catch(int x){
     std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
 
-  int n = ifrom.size();
+  int n_fine = ifrom_fine.size();
+  int n_coarse = ifrom_coarse.size();
 
-  std::map <std::string, std::string> fromto; // table of fine flow directions
+  // check levels
+  int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].std::string::c_str()));
+  int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].std::string::c_str()));
 
-  // fill supportive structure
-  for (int i = 0; i < n; i++){
-    fromto[ifrom[i]] = ito[i];
+  // fill supportive structures
+  std::map <std::string, std::string> fromto_coarse; // table of coarse flow directions
+  for (int i = 0; i < n_coarse; i++){
+    if (ifrom_coarse[i] != ito_coarse[i]){
+      fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
+    }
+  }
+
+  std::map <std::string, std::string> fromto_fine; // table of fine flow directions
+  for (int i = 0; i < n_fine; i++){
+    if (ifrom_fine[i] != ito_fine[i]){
+      fromto_fine[ifrom_fine[i]] = ito_fine[i];
+    }
   }
 
 
-  // Get flow accumulation table (NB: why not get as a parameter?)
-  std::map <std::string, double> flowacc = flow_acc(ifrom, ito);
+  // step 1 - form drainage tree
+  std::unordered_map<std::string, int> dtree = dren_tree(ifrom_fine, ito_fine);
+
+  // step 2 - check every flow
+
+  // get i-th flow in drainage tree
+  //dtree["max_num"]
+  for (int i = 1; i < 10; i++){
+    std::cout<<"process "<<i<<"th flow"<<std::endl;
+
+    // get fine-level i-th flow
+    std::vector<std::string> fine_flow = map_filter(dtree, i);
+    int n_flow = fine_flow.size();
+    // find out who are his parents
+    // list of coarser cells with number of fine cells in it
+    std::unordered_map<std::string, int> this_coarse_cells;
+    // also we need to find the last big cell in the sequence
+    std::string last_big_cell = H3_to_parent(fine_flow[0], h3_level_coarse);
+    for (auto const & elmt : fine_flow){
+      std::string parent = H3_to_parent(elmt, h3_level_coarse);
+      this_coarse_cells[parent]++;
+
+      if (fromto_fine.find(elmt) != fromto_fine.end()){
+        if (std::find(fine_flow.begin(), fine_flow.end(), fromto_fine[elmt])
+              == fine_flow.end()){
+          last_big_cell = parent;
+        }
+      }else{
+        last_big_cell = parent;
+      }
+    }
+
+    // go through coarse cells:
+    if (this_coarse_cells.size() > 1){
+      std::vector<int> is_correct;
+      for (auto const & elmt : this_coarse_cells){
+        int correct = 0;
+        if (elmt.first != last_big_cell){
+          std::string this_cell = elmt.first;
+          while(true){
+            if (fromto_coarse.find(this_cell) != fromto_coarse.end()){
+              if (this_coarse_cells.find(fromto_coarse[this_cell]) != this_coarse_cells.end() ||
+                  fromto_coarse[this_cell] == last_big_cell){
+                correct = 1;
+                break;
+              }else{
+                this_cell = fromto_coarse[this_cell];
+              }
+            }else{
+              break;
+            }
+          }
+        }
+        is_correct.push_back(correct);
+      }
+      std::cout<<std::endl;
+      for (int j = 0; j < is_correct.size(); j++){
+        std::cout<<is_correct[j];
+      }
+      std::cout<<std::endl;
+
+
+    }
+
+
+
+//подумать, что делать с last big cell -
+//вместо неё в список корректных ячеек ставится 0
+
+
+
+
+  }
 
 
 
 
 
 
- return ftab;
+ return vertab;
 }
-
 
 
 
