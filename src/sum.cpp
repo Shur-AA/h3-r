@@ -3379,10 +3379,11 @@ std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
 // uses fine and coarse from-to tabs as in-data
 
 // [[Rcpp::export]]
-std::unordered_map<int, int> generalisation_verification(std::vector<std::string> & ifrom_fine,
-                                                         std::vector<std::string> & ito_fine,
-                                                         std::vector<std::string> & ifrom_coarse,
-                                                         std::vector<std::string> & ito_coarse){
+double generalisation_verification(std::vector<std::string> & ifrom_fine,
+                                   std::vector<std::string> & ito_fine,
+                                   std::vector<std::string> & ifrom_coarse,
+                                   std::vector<std::string> & ito_coarse,
+                                   const int flow_num){
   std::unordered_map <int, int> vertab; // resulting tab
 
   try{
@@ -3421,14 +3422,18 @@ std::unordered_map<int, int> generalisation_verification(std::vector<std::string
 
   // step 2 - check every flow
 
+  double all_acc_nominator = 0;
+  double all_acc_denominator = 1;
+
   // get i-th flow in drainage tree
   //dtree["max_num"]
-  for (int i = 1; i < 10; i++){
+  for (int i = 1; i < flow_num; i++){
     std::cout<<"process "<<i<<"th flow"<<std::endl;
 
     // get fine-level i-th flow
     std::vector<std::string> fine_flow = map_filter(dtree, i);
     int n_flow = fine_flow.size();
+    int fi_nominator = 0;
     // find out who are his parents
     // list of coarser cells with number of fine cells in it
     std::unordered_map<std::string, int> this_coarse_cells;
@@ -3470,6 +3475,8 @@ std::unordered_map<int, int> generalisation_verification(std::vector<std::string
           }
         }
         is_correct.push_back(correct);
+        fi_nominator += correct * elmt.second;
+        std::cout<<fi_nominator<<std::endl;
       }
       std::cout<<std::endl;
       for (int j = 0; j < is_correct.size(); j++){
@@ -3477,25 +3484,25 @@ std::unordered_map<int, int> generalisation_verification(std::vector<std::string
       }
       std::cout<<std::endl;
 
+      std::cout<<fi_nominator<<"-"<<n_flow<<"-"<<this_coarse_cells[last_big_cell]<<std::endl;
+      int denom = n_flow - this_coarse_cells[last_big_cell];
+      double fi = (double)fi_nominator / (double)denom;
 
+      all_acc_nominator += (fi * n_flow);
+      all_acc_denominator += n_flow;
+
+      std::cout<<all_acc_nominator<<std::endl;
     }
-
-
-
-//подумать, что делать с last big cell -
-//вместо неё в список корректных ячеек ставится 0
-
-
 
 
   }
 
+  std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
+ double all_accuracy = all_acc_nominator / all_acc_denominator;
+ std::cout<<"result: "<<all_accuracy<<std::endl;
 
 
-
-
-
- return vertab;
+ return all_accuracy;
 }
 
 

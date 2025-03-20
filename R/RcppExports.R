@@ -272,7 +272,7 @@ dren_tree <- function(ifrom, ito) {
     .Call(`_h3_dren_tree`, ifrom, ito)
 }
 
-generalisation_verification <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse) {
-    .Call(`_h3_generalisation_verification`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse)
+generalisation_verification <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, flow_num) {
+    .Call(`_h3_generalisation_verification`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, flow_num)
 }
 

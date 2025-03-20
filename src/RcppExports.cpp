@@ -678,8 +678,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // generalisation_verification
-std::unordered_map<int, int> generalisation_verification(std::vector<std::string>& ifrom_fine, std::vector<std::string>& ito_fine, std::vector<std::string>& ifrom_coarse, std::vector<std::string>& ito_coarse);
-RcppExport SEXP _h3_generalisation_verification(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP) {
+double generalisation_verification(std::vector<std::string>& ifrom_fine, std::vector<std::string>& ito_fine, std::vector<std::string>& ifrom_coarse, std::vector<std::string>& ito_coarse, const int flow_num);
+RcppExport SEXP _h3_generalisation_verification(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP, SEXP flow_numSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -687,7 +687,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito_fine(ito_fineSEXP);
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom_coarse(ifrom_coarseSEXP);
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito_coarse(ito_coarseSEXP);
-    rcpp_result_gen = Rcpp::wrap(generalisation_verification(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse));
+    Rcpp::traits::input_parameter< const int >::type flow_num(flow_numSEXP);
+    rcpp_result_gen = Rcpp::wrap(generalisation_verification(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, flow_num));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -748,7 +749,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_nsa", (DL_FUNC) &_h3_nsa, 3},
     {"_h3_vvrfra", (DL_FUNC) &_h3_vvrfra, 3},
     {"_h3_dren_tree", (DL_FUNC) &_h3_dren_tree, 2},
-    {"_h3_generalisation_verification", (DL_FUNC) &_h3_generalisation_verification, 4},
+    {"_h3_generalisation_verification", (DL_FUNC) &_h3_generalisation_verification, 5},
     {NULL, NULL, 0}
 };
 
