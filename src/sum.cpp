@@ -2896,7 +2896,7 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     if (std::find(nonexisting_w.begin(), nonexisting_w.end(), elm.first)
           == nonexisting_w.end()){
       lowest_pp_list.push_back(elm.second);
-      std::cout<<elm.second<<std::endl;
+      //std::cout<<elm.second<<std::endl;
     }
   }
 
@@ -2966,8 +2966,19 @@ std::unordered_map<std::string, std::string> fill_depr_jd(std::vector<std::strin
     }
   }
 
-  return fdtab1;
 
+
+  // test for incline dashes
+  //std::unordered_map <std::string, double> inctab;
+  //for (auto const & elmt : fdtab1){
+    //if (elmt.second != "zero_drops" && elmt.second != "edge"){
+      //inctab[elmt.first] = geotab[elmt.first] - geotab[elmt.second];
+    //}
+  //}
+  //return inctab;
+
+
+  return fdtab1;
 }
 
 
@@ -3288,7 +3299,7 @@ std::unordered_map<std::string, std::string> vvrfra(std::vector<std::string> & i
 
 // Reconstruction and ordering of flows
 // as the first step of verification
-// uses flow accumulation as in-data
+// uses flow directions as in-data
 
 // [[Rcpp::export]]
 std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
@@ -3374,6 +3385,99 @@ std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
 
 
 
+// Reconstruction and ordering of flows
+// as the first step of verification
+// uses flow accumulation as in-data
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, int> dren_tree_fa(std::vector<std::string> & ind,
+                                                  std::vector<int> & fa,
+                                                  std::vector<std::string> & ifrom,
+                                                  std::vector<std::string> & ito){
+  std::unordered_map <std::string, int> ftab; // resulting tab
+
+  try{
+    if (ind.size() != fa.size()){
+      throw 2; // not equal lengths exception
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  int n = ind.size();
+  std::map <std::string, double> flowacc;
+
+  // fill supportive structure
+  for (int i = 0; i < n; i++){
+    flowacc[ind[i]] = fa[i];
+  }
+
+  int nn = ifrom.size();
+
+  std::map <std::string, std::string> fromto; // table of fine flow directions
+
+  // fill supportive structure
+  for (int i = 0; i < nn; i++){
+    fromto[ifrom[i]] = ito[i];
+  }
+
+  // make max_heap priority queue
+  std::priority_queue<std::pair<double, std::string>> fq; // fa queue
+
+  // filling pq
+  for (auto const & elmt : flowacc){
+    fq.push(make_pair(elmt.second, elmt.first));
+  }
+
+  // flow number controller
+  int current_fnum = 1;
+
+  // go through queue
+  while(!fq.empty()){
+    // get first cell in the queue - with max fa
+    std::pair<double, std::string> max_fa = fq.top();
+    fq.pop();
+
+    // if it is not marked yet
+    if (ftab.find(max_fa.second) == ftab.end()){
+      ftab[max_fa.second] = current_fnum;
+      // then find who contribute to the cell
+      std::string this_max_ind = max_fa.second; // the cell from neighbors with max fa
+      std::string focus_ind = max_fa.second;
+      double this_max_fa = 0.0; // corresponding fa
+
+      while(true){
+        // looking only through immediate neighbors
+        std::vector<std::string> this_vecinity = cell_vecinity(focus_ind, 1);
+        // check them in fromto (flow dir) table
+        for (auto const & vec_ind : this_vecinity){
+          if (fromto.find(vec_ind) != fromto.end() && ftab.find(vec_ind) == ftab.end()){
+            if (fromto[vec_ind] == focus_ind){
+              if (flowacc.find(vec_ind) != flowacc.end()){
+                if (flowacc[vec_ind] >= this_max_fa){
+                  this_max_fa = flowacc[vec_ind];
+                  this_max_ind = vec_ind;
+                }
+              }
+            }
+          }
+        }
+        ftab[this_max_ind] = current_fnum;
+        focus_ind = this_max_ind;
+        if (this_max_fa < 1){
+          current_fnum++;
+          break;
+        }else{this_max_fa = 0.0;}
+      }
+    }
+  }
+  ftab["max_num"] = current_fnum;
+  return ftab;
+}
+
+
+
+
 
 // Second step of verification
 // uses fine and coarse from-to tabs as in-data
@@ -3383,6 +3487,8 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
                                    std::vector<std::string> & ito_fine,
                                    std::vector<std::string> & ifrom_coarse,
                                    std::vector<std::string> & ito_coarse,
+                                   std::vector<std::string> & ind_fine,
+                                   std::vector<int> & fa_fine,
                                    const int flow_num){
   std::unordered_map <int, int> vertab; // resulting tab
 
@@ -3418,12 +3524,15 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
 
 
   // step 1 - form drainage tree
-  std::unordered_map<std::string, int> dtree = dren_tree(ifrom_fine, ito_fine);
+  std::unordered_map<std::string, int> dtree = dren_tree_fa(ind_fine, fa_fine,
+                                                         ifrom_fine, ito_fine);
 
   // step 2 - check every flow
 
   double all_acc_nominator = 0;
   double all_acc_denominator = 1;
+
+  std::vector<double> intermed_result;
 
   // get i-th flow in drainage tree
   //dtree["max_num"]
@@ -3495,15 +3604,62 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
     }
 
 
+    if (i % 10 == 0){
+      intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+    }
+
   }
 
   std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
  double all_accuracy = all_acc_nominator / all_acc_denominator;
  std::cout<<"result: "<<all_accuracy<<std::endl;
 
+ for (auto const & a : intermed_result){
+   std::cout<<"--- "<<a<<std::endl;
+ }
+
 
  return all_accuracy;
 }
+
+
+
+
+// Given a set of adjacent cells
+// and the buffer size
+// creates a set of cells which are
+// the result of negative buffering
+// input may be multipolygon
+
+// [[Rcpp::export]]
+std::vector<std::string> negative_buffer(std::vector<std::string> & input_plg,
+                                                const int buf_size){
+
+  int n = input_plg.size();
+
+  // buffer cells
+  std::vector<std::string> to_exclude;
+  for (int i = 0; i < n; i++){
+    std::vector<std::string> disk = cell_vecinity_circle(input_plg[i], buf_size);
+    for (auto const & vec_ind : disk){
+      if (std::find(input_plg.begin(), input_plg.end(), vec_ind) == input_plg.end()){
+        to_exclude.push_back(input_plg[i]);
+        std::cout<<input_plg[i]<<std::endl;
+        break;
+      }
+    }
+  }
+
+  std::vector<std::string> remainings;
+  for (auto const & ind : input_plg){
+    if (std::find(to_exclude.begin(), to_exclude.end(), ind) == to_exclude.end()){
+      remainings.push_back(ind);
+    }
+  }
+
+return remainings;
+}
+
 
 
 
