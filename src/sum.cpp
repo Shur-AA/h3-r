@@ -770,7 +770,7 @@ double calc_addition(std::string cell1,
   H3Index h3Edge = getH3UnidirectionalEdge(h31, h32);
   double elen = exactEdgeLengthM(h3Edge);
   double add = sqrt(3) * elen / 200;
-  //std::cout<<edgeLengthM(8);
+  //std::cout<<edgeLength               M(8);
   return add;
 }
 
@@ -3483,13 +3483,13 @@ std::unordered_map<std::string, int> dren_tree_fa(std::vector<std::string> & ind
 // uses fine and coarse from-to tabs as in-data
 
 // [[Rcpp::export]]
-double generalisation_verification(std::vector<std::string> & ifrom_fine,
-                                   std::vector<std::string> & ito_fine,
-                                   std::vector<std::string> & ifrom_coarse,
-                                   std::vector<std::string> & ito_coarse,
-                                   std::vector<std::string> & ind_fine,
-                                   std::vector<int> & fa_fine,
-                                   const int flow_num){
+std::vector<double> generalisation_verification(std::vector<std::string> & ifrom_fine,
+                                               std::vector<std::string> & ito_fine,
+                                               std::vector<std::string> & ifrom_coarse,
+                                               std::vector<std::string> & ito_coarse,
+                                               std::vector<std::string> & ind_fine,
+                                               std::vector<int> & fa_fine,
+                                               const int flow_num){
   std::unordered_map <int, int> vertab; // resulting tab
 
   try{
@@ -3549,6 +3549,7 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
     // also we need to find the last big cell in the sequence
     std::string last_big_cell = H3_to_parent(fine_flow[0], h3_level_coarse);
     for (auto const & elmt : fine_flow){
+      //std::cout<<"fine flow elmt: "<<elmt<<std::endl;
       std::string parent = H3_to_parent(elmt, h3_level_coarse);
       this_coarse_cells[parent]++;
 
@@ -3569,6 +3570,7 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
         int correct = 0;
         if (elmt.first != last_big_cell){
           std::string this_cell = elmt.first;
+          int count = 0;
           while(true){
             if (fromto_coarse.find(this_cell) != fromto_coarse.end()){
               if (this_coarse_cells.find(fromto_coarse[this_cell]) != this_coarse_cells.end() ||
@@ -3576,7 +3578,9 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
                 correct = 1;
                 break;
               }else{
+                count++;
                 this_cell = fromto_coarse[this_cell];
+                if (count > 3000){break;}
               }
             }else{
               break;
@@ -3585,41 +3589,43 @@ double generalisation_verification(std::vector<std::string> & ifrom_fine,
         }
         is_correct.push_back(correct);
         fi_nominator += correct * elmt.second;
-        std::cout<<fi_nominator<<std::endl;
+        //std::cout<<fi_nominator<<std::endl;
       }
-      std::cout<<std::endl;
-      for (int j = 0; j < is_correct.size(); j++){
-        std::cout<<is_correct[j];
-      }
-      std::cout<<std::endl;
+      //std::cout<<std::endl;
+      //for (int j = 0; j < is_correct.size(); j++){
+        //std::cout<<is_correct[j];
+      //}
+      //std::cout<<std::endl;
 
-      std::cout<<fi_nominator<<"-"<<n_flow<<"-"<<this_coarse_cells[last_big_cell]<<std::endl;
+      //std::cout<<fi_nominator<<"-"<<n_flow<<"-"<<this_coarse_cells[last_big_cell]<<std::endl;
       int denom = n_flow - this_coarse_cells[last_big_cell];
       double fi = (double)fi_nominator / (double)denom;
 
       all_acc_nominator += (fi * n_flow);
       all_acc_denominator += n_flow;
 
-      std::cout<<all_acc_nominator<<std::endl;
+      //std::cout<<all_acc_nominator<<std::endl;
     }
 
 
-    if (i % 10 == 0){
-      intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+    if (i >= 100){
+      if (i % 100 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    }else{
+      if (i % 10 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
     }
 
   }
 
   std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
  double all_accuracy = all_acc_nominator / all_acc_denominator;
- std::cout<<"result: "<<all_accuracy<<std::endl;
+ std::cout<<"number of flows: "<<dtree["max_num"]<<std::endl;
 
- for (auto const & a : intermed_result){
-   std::cout<<"--- "<<a<<std::endl;
- }
-
-
- return all_accuracy;
+ intermed_result.push_back(all_accuracy);
+ return intermed_result;
 }
 
 

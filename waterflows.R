@@ -5,13 +5,12 @@ library(tidyverse)
 library(akima)
 library(tidyr)
 library(readxl)
-library(RPostgres)
 library(Matrix)
 library(data.table)
 
 
 options(scipen=999)
-rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/africa60_3.tif"
+rpath = "D:/3_Проекты/РФФИ сток/data/etopo15/Lena.tif"
 #rpath = "D:/3_Проекты/РФФИ сток/data/congo1.tif"
 rast = read_stars(rpath) # input 1-band raster file
 
@@ -76,7 +75,7 @@ start_h3_l = choose_h3_level(initial_resolution)
 rast_extent = raster_to_bbox(rast)
 hex_bnd_cntr = h3:::hex_boundary_inbbox(rast_extent$lon_p,
                                        rast_extent$lat_p,
-                                       3, start_h3_l) %>%
+                                       2, start_h3_l) %>%
   do.call(rbind, .) %>%
   as.data.frame()
 hex_bnd_cntr$ind = rownames(hex_bnd_cntr)
@@ -101,9 +100,9 @@ tab = h3::h3_raster_to_hex(bastile, 8) %>% na.omit()
 
 
 
-for (h in c(12, 13, 16)){
+for (h in c(24, 25, 32)){
   print(h)
-  h = 999
+  h = 25
   start.time <- Sys.time()
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
@@ -120,12 +119,13 @@ for (h in c(12, 13, 16)){
   plg_m$V2 = as.double(plg_m$V2)
   plg_m = as.matrix(plg_m)
   coords = list(plg_m)
+  #coords = list(rbind(coords[1][[1]], coords[1][[1]][1,]))
   pol = st_polygon(coords) %>% st_sfc()
   st_crs(pol) = st_crs(4326)
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 200) %>%
+              st_buffer(dist = 130000) %>%
               st_transform(crs = 4326)
 
 
@@ -156,16 +156,16 @@ for (h in c(12, 13, 16)){
   time.taken
 
 
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
-  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/Lena/', 'fd', h, '.csv', sep = ''))
+  fdem = read.csv(paste('C:/Users/user/Downloads/gidro/Lena/', 'fd', h, '.csv', sep = ''))
   colnames(fdem) = c('from', 'to')
   fdem = filter(fdem, to != 'edge')
-  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/', 'fd', h, '.csv', sep = ''))
+  write.csv(fdem, paste('C:/Users/user/Downloads/gidro/Lena/', 'fd', h, '.csv', sep = ''))
   fa = h3::h3_flow_acc(fdem$from, fdem$to)
-  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
-  fa = read.csv(paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = '')) %>%
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/Lena/', 'fa', h, '.csv', sep = ''))
+  fa = read.csv(paste('C:/Users/user/Downloads/gidro/Lena/', 'fa', h, '.csv', sep = '')) %>%
     filter(`x` > 40)
-  write.csv(fa, paste('C:/Users/user/Downloads/gidro/', 'fa', h, '.csv', sep = ''))
+  write.csv(fa, paste('C:/Users/user/Downloads/gidro/Lena/', 'faf', h, '.csv', sep = ''))
 
   end.time <- Sys.time()
   time.taken <- end.time - start.time
@@ -175,43 +175,16 @@ for (h in c(12, 13, 16)){
 
 
 
-fdem = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_nsa7.csv')
-fdem = select(fdem, `X`, `x`)
+
+fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fd.csv")
+fdem = select(fdem, -`X`)
 colnames(fdem) = c('from', 'to')
 fa = h3::h3_flow_acc(fdem$from, fdem$to)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_nsa7fa.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_nsa7fa.csv') %>%
-  filter(`x` > 20)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_nsa7fa.csv')
+write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fa.csv")
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fa.csv') %>%
+  filter(`x` > 30)
+write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_faf.csv')
 
-
-
-fdem = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_fd.csv')
-fdem = filter(fdem, to != 'edge')
-fa = h3::h3_flow_acc(fdem$from, fdem$to)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_fa.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_fa.csv') %>%
-  filter(`x` > 50)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_faf.csv')
-
-
-fdem = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fd.csv')
-fdem = filter(fdem, to != 'edge')
-fa = h3::h3_flow_acc(fdem$from, fdem$to)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv') %>%
-  filter(`x` > 50)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_faf.csv')
-
-
-
-fdem = read.csv('C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_fd.csv')
-fdem = filter(fdem, to != 'edge')
-fa = h3::h3_flow_acc(fdem$from, fdem$to)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_fa.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_fa.csv') %>%
-  filter(`x` > 50)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_faf.csv')
 
 
 # negative buffering
@@ -252,164 +225,296 @@ library(tidyverse)
 library(akima)
 library(tidyr)
 library(readxl)
-library(RPostgres)
 library(Matrix)
 library(data.table)
 
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra3.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/vvrfra3_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+fd = select(fd, `X`, `x`)
+colnames(fd) = c('from', 'to')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 6, 250)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_cotat6.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_cotat3_90000.csv')
-colnames(cfd) = c('from', 'to')
-#vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+kk = h3:::dren_tree_fa(fa$ind, fa$val, fd$from, fd$to)
+write.csv(kk, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/dren_vvrfra3.csv')
+kk = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/dren_cotat5.csv')
+colnames(kk) = c('ind', 'num')
+kkk = filter(kk, num == 1) %>% select(ind)
+coords = h3::h3_indexes_to_coords(kkk$ind) %>%
+          do.call(rbind, .) %>%
+          as.data.frame()
+ch = st_as_sf(coords, coords = c('V1', 'V2'), crs = 4326)
+st_write(ch, 'C:/Users/user/Downloads/dren_5.geojson', append=FALSE)
 
+
+# DREN TREE
 fd = read.csv('C:/Users/user/Downloads/gidro/fd17.csv')
 fd = select(fd, from, to)
 dt = h3:::dren_tree(fd$from, fd$to)
 write.csv(dt, 'C:/Users/user/Downloads/gidro/drent_17.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/fd17.csv')
-fd = select(fd, from, to)
-cfd = h3:::vvrfra(fd$from, fd$to, 4)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/vvrfra_.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/vvrfra_.csv')
-colnames(cfd) = c('from', 'to')
-
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 6)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041213640/congo_1041213640_nsa6.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_nsa6.csv')
-colnames(cfd) = c('from', 'to')
-
-
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_fd.csv')
-fd = select(fd, from, to)
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_cotat3_90000.csv')
-cfd = select(cfd, `X`, `x`)
-colnames(cfd) = c('from', 'to')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041174950/congo_1041174950_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 10)
-
-# DELETE
-
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4.csv')
+#COTAT
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
 fd = select(fd, from, to)
 cfd = h3:::cotat(fd$from, fd$to, 7, 40)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat7.csv')
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat7.csv')
 
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 7)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_nsa7.csv')
-
-
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
 fd = select(fd, from, to)
 cfd = h3:::cotat(fd$from, fd$to, 6, 250)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_cotat6.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 6)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_nsa6.csv')
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat6.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
 fd = select(fd, from, to)
 cfd = h3:::cotat(fd$from, fd$to, 5, 1700)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_cotat5.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 5)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_nsa5.csv')
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat5.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
 fd = select(fd, from, to)
 cfd = h3:::cotat(fd$from, fd$to, 4, 12000)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_cotat4.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
-fa = select(fa, `X`, `x`)
-colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 4)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_nsa4.csv')
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat4.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = h3:::cotat(fd$from, fd$to, 3, 90000)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat3.csv')
 
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4p.csv')
-fd = select(fd, `X`, `x`)
-colnames(fd) = c('from', 'to')
-cfd = h3:::cotat(fd$from, fd$to, 3, 40)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat3p.csv')
+#VRFRA
 
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
+  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = select(fd, from, to)
+  cfd = h3:::vvrfra(fd$from, fd$to, 3)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra3.csv')
+
+  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = select(fd, from, to)
+  cfd = h3:::vvrfra(fd$from, fd$to, 4)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra4.csv')
+
+  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = select(fd, from, to)
+  cfd = h3:::vvrfra(fd$from, fd$to, 5)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra5.csv')
+
+  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = select(fd, from, to)
+  cfd = h3:::vvrfra(fd$from, fd$to, 6)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra6.csv')
+
+
+
+
+
+
+#NSA
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
 cfd = h3:::nsa(fa$ind, fa$val, 3)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_nsa3.csv')
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa3.csv')
+
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+cfd = h3:::nsa(fa$ind, fa$val, 4)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa4.csv')
+
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+cfd = h3:::nsa(fa$ind, fa$val, 5)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa5.csv')
+
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+cfd = h3:::nsa(fa$ind, fa$val, 6)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa6.csv')
 
 
 
+# VERIFY
 
 
-
-
-
-# cotat for night
-
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 7, 40)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat7_40.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat7_40.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4.csv')
+cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-a = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4_gv.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_fd.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 6, 250)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat6_250.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat6_250.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat5.csv')
+cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-b = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat5_gv.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 5, 1700)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat5_1700.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat5_1700.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_cotat3.csv')
+cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-c = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259940/congo_1041259940_cotat3_gv.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 4, 12000)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat4_12000.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat4_12000.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat6.csv')
+cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-d = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat6_gv.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 3, 90000)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat3_90000.csv')
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156950/congo_1041156950_cotat3_90000.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat7.csv')
+cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-e = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, 10000)
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat7_gv.csv')
+
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra3.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra3_gv.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra4.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra4_gv.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra5.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra5_gv.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra6.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra6_gv.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra7.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_vvrfra7_gv.csv')
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa3.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa3_gv.csv')
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa4.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa4_gv.csv')
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa5.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa5_gv.csv')
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa6.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa6_gv.csv')
+
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = select(fd, from, to)
+cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa7.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_nsa7_gv.csv')
 
 
 
 
-
-
-
-
-
+1041156960
 
 
 fdem = read.csv('C:/Users/user/Downloads/gidro/cotat11.csv')

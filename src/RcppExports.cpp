@@ -692,7 +692,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // generalisation_verification
-double generalisation_verification(std::vector<std::string>& ifrom_fine, std::vector<std::string>& ito_fine, std::vector<std::string>& ifrom_coarse, std::vector<std::string>& ito_coarse, std::vector<std::string>& ind_fine, std::vector<int>& fa_fine, const int flow_num);
+std::vector<double> generalisation_verification(std::vector<std::string>& ifrom_fine, std::vector<std::string>& ito_fine, std::vector<std::string>& ifrom_coarse, std::vector<std::string>& ito_coarse, std::vector<std::string>& ind_fine, std::vector<int>& fa_fine, const int flow_num);
 RcppExport SEXP _h3_generalisation_verification(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP, SEXP ind_fineSEXP, SEXP fa_fineSEXP, SEXP flow_numSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

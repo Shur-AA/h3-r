@@ -5,6 +5,8 @@ library(sp)
 library(tidyverse)
 library(akima)
 library(tidyr)
+library(readr)
+library(bit64)
 
 
 options(scipen=999)
@@ -186,10 +188,15 @@ result = data.frame(territory = c("city"),
 # КАРУСЕЛЬ
 #
 # папка с шейпами по населению в городах
-dir = 'D:/1_Аспа/Information loss/Population15'
+dir = 'D:/1_Аспа/Information loss/gidroinfo'
 city_shps = list.files(dir, pattern = '*.shp$')
 # сколько уровней будем проходить; 4 - самый высокий уровень, эксп. мнение
 levels_seq = seq(8, 5, -1)
+
+
+
+
+
 
 # ходим по городам
 for (file in city_shps){
