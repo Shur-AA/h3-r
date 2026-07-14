@@ -248,50 +248,43 @@ dir = 'D:/1_Аспа/Information loss/gidroinfo'
 
 
 
-tab0 <- read_csv(paste(dir, '/', 'vv4_dirs.csv', sep=''), col_types = cols(
+tab0 <- read_csv(paste(dir, '/', 'new_dirs/8_dirs.csv', sep=''), col_types = cols(
   from = col_character(),
-  direction_decimal = col_integer()
+  direction = col_integer()
 ))
-tab0$from = sub("^0x", "", tab0$from)
-tab0$parent = sub("^0x", "", tab0$parent)
-#tab0$parent6 = sub("^0x", "", tab0$parent6)
-#tab0$parent5 = sub("^0x", "", tab0$parent5)
-#tab0$parent4 = sub("^0x", "", tab0$parent4)
-#tab0$parent3 = sub("^0x", "", tab0$parent3)
 tab0 = as.data.frame(tab0)
 
-tab1 <- read_csv(paste(dir, '/', 'vv3_dirs.csv', sep=''), col_types = cols(
+
+
+tab1 <- read_csv(paste(dir, '/', 'new_dirs/vv7_dirs.csv', sep=''), col_types = cols(
   from = col_character(),
-  direction_decimal = col_integer()
+  direction = col_integer()
 ))
-tab1$from = sub("^0x", "", tab1$from)
-tab1$parent = sub("^0x", "", tab1$parent)
 tab1 = as.data.frame(tab1)
 
-tab00 = select(tab0, from, direction_decimal, parent)
+tab00 = select(tab0, from, direction, parent)
 
 pkl = calc_kl_divergence(tab00, tab1)
+
+pmi = mut_inf2(tab00, tab1)
+pmi
 pkl
 
 
-
-pmi = mut_inf2(tab0, tab1)
-
-
-p01 = entropy(tab0, 2)
-p00 = length(unique(tab0$parent))
 
 
 
 ent = tab0 %>% group_by(tab0$parent) %>%
   summarise(n_cells = n(),                     # Количество ячеек в группе
-            ent = calc_entropy(direction_decimal)
+            ent = calc_entropy(direction)
   ) %>%
   ungroup()
 
-sr = calc_entropy(tab0$direction_decimal)
+sr = calc_entropy(tab0$direction)
 p10 = mean(ent$ent)
 
+sr
+p10
 
 
 
@@ -299,7 +292,7 @@ p10 = mean(ent$ent)
 
 
 # ENTROPY CORRECTION
-p = table(tab0$direction_decimal) / length(tab0$direction_decimal)
+p = table(tab0$direction) / length(tab0$direction)
 if (p[[3]] > p[[1]]){
   kk = c(p[[1]] + abs(p[[1]] - p[[3]])*dolia)
 } else {
@@ -336,8 +329,25 @@ if (p[[4]] > p[[6]]){
 
 
 # Kl CORRECTION
+tab0 <- read_csv(paste(dir, '/', 'new_dirs/8_dirs.csv', sep=''), col_types = cols(
+  from = col_character(),
+  direction = col_integer()
+))
+tab0 = as.data.frame(tab0)
 
 
+
+tab1 <- read_csv(paste(dir, '/', 'new_dirs/nsa3_dirs.csv', sep=''), col_types = cols(
+  from = col_character(),
+  direction = col_integer()
+))
+tab1 = as.data.frame(tab1)
+
+tab00 = select(tab0, from, direction, parent3)
+
+
+
+p = table(tab0$direction) / length(tab0$direction)
 colnames(tab00) = c('h3_chld', 'z', 'h3_prnt')
 colnames(tab1) = c('h3_chld', 'z', 'h3_prnt')
 # 1. Получаем распределение (гистограмму) направлений для обоих уровней
@@ -406,3 +416,66 @@ kl_val_new = combined %>%
   pull(kl)
 kl_val
 kl_val_new
+
+
+
+
+# Graphs
+angle = c(293, 53, 353, 173, 233, 113)
+angle1 = angle - 19
+t = table(tab0$direction) %>%
+  as.data.frame() %>% mutate(pr = Freq/sum(Freq)*100) %>%
+  cbind(angle)
+names(t) = c("Xh3", "Yabs", "Y", "X")
+
+
+
+
+ggplot(t, aes(x = X, y = Y, fill = Y)) +
+  # geom_bar отрисовывает "лепестки"
+  # width подбирается в зависимости от шага азимута (например, 45)
+  geom_bar(stat = "identity", width = 12, color = "white") +
+
+  # Превращаем в полярные координаты
+  coord_polar(theta = "x", start = 0, direction = 1) +
+  # Настройка шкалы X, чтобы 0 был сверху и метки шли по кругу
+  scale_x_continuous(
+    limits = c(0, 360),
+    breaks = seq(0, 330, by = 30),
+    labels = c("0°", "30°", "60°", "90°", "120°", "150°", "180°", "210°", "240°", "270°", "300°", "330°")
+  ) +
+  labs(
+    title = "Алгоритм VVRFRA, уровень детализации 2",
+    fill = "Частота (%)
+    ",    # Название для легенды заливки
+  )+
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 25, face = "bold"),
+    axis.text.y = element_blank(),
+    # Подписи осей (названия "Azimuth", "Percent")
+    axis.title = element_blank(),
+
+    # Текст меток на осях (числа 0, 45, 90... или "С", "В")
+    axis.text = element_text(size = 23, face = "bold"),
+
+    # Текст легенды (если она есть)
+    legend.text = element_text(size = 14),
+    legend.title = element_text(size = 16)
+  )+
+  geom_text(
+    data = data.frame(y = c(5, 10, 15, 20, 25)), # Ваши пороги процентов
+    aes(x = 77, y = y, label = paste0(y, "%")), # x = 20 — это угол в градусах
+    inherit.aes = FALSE,
+    size = 6
+  )+
+  scale_fill_distiller(palette = 'PuBu', limits = c(5, 26), direction = 1)
+
+
+
+
+
+t |>
+  ggplot(mapping = aes(x = X, y = Y, fill = Y)) +
+  geom_col() +
+  coord_polar()

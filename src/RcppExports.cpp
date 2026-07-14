@@ -563,6 +563,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// flow_acc_optimized
+std::unordered_map<std::string, double> flow_acc_optimized(const std::vector<std::string>& ifrom, const std::vector<std::string>& ito);
+RcppExport SEXP _h3_flow_acc_optimized(SEXP ifromSEXP, SEXP itoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito(itoSEXP);
+    rcpp_result_gen = Rcpp::wrap(flow_acc_optimized(ifrom, ito));
+    return rcpp_result_gen;
+END_RCPP
+}
 // flow_acc_stnd
 std::map <std::string, int> flow_acc_stnd(std::vector<std::string>& ifrom, std::vector<std::string>& ito);
 RcppExport SEXP _h3_flow_acc_stnd(SEXP ifromSEXP, SEXP itoSEXP) {
@@ -639,6 +651,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cotat_optimized
+std::unordered_map<std::string, std::string> cotat_optimized(const std::vector<std::string>& ifrom, const std::vector<std::string>& ito, const int to_level, const int area_threshold);
+RcppExport SEXP _h3_cotat_optimized(SEXP ifromSEXP, SEXP itoSEXP, SEXP to_levelSEXP, SEXP area_thresholdSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito(itoSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    Rcpp::traits::input_parameter< const int >::type area_threshold(area_thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(cotat_optimized(ifrom, ito, to_level, area_threshold));
+    return rcpp_result_gen;
+END_RCPP
+}
 // nsa
 std::unordered_map<std::string, std::string> nsa(std::vector<std::string>& h3ind, std::vector<int>& fa_val, const int to_level);
 RcppExport SEXP _h3_nsa(SEXP h3indSEXP, SEXP fa_valSEXP, SEXP to_levelSEXP) {
@@ -649,6 +675,32 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<int>& >::type fa_val(fa_valSEXP);
     Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
     rcpp_result_gen = Rcpp::wrap(nsa(h3ind, fa_val, to_level));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nsa_optimized
+std::unordered_map<std::string, std::string> nsa_optimized(const std::vector<std::string>& h3ind, const std::vector<int>& fa_val, const int to_level);
+RcppExport SEXP _h3_nsa_optimized(SEXP h3indSEXP, SEXP fa_valSEXP, SEXP to_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type h3ind(h3indSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type fa_val(fa_valSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(nsa_optimized(h3ind, fa_val, to_level));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nsa_optimized_level1
+std::unordered_map<std::string, std::string> nsa_optimized_level1(const std::vector<std::string>& h3ind, const std::vector<int>& fa_val, const int to_level);
+RcppExport SEXP _h3_nsa_optimized_level1(SEXP h3indSEXP, SEXP fa_valSEXP, SEXP to_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type h3ind(h3indSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type fa_val(fa_valSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(nsa_optimized_level1(h3ind, fa_val, to_level));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -665,6 +717,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// vvrfra_optimized
+std::unordered_map<std::string, std::string> vvrfra_optimized(const std::vector<std::string>& ifrom, const std::vector<std::string>& ito, const int to_level);
+RcppExport SEXP _h3_vvrfra_optimized(SEXP ifromSEXP, SEXP itoSEXP, SEXP to_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito(itoSEXP);
+    Rcpp::traits::input_parameter< const int >::type to_level(to_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(vvrfra_optimized(ifrom, ito, to_level));
+    return rcpp_result_gen;
+END_RCPP
+}
 // dren_tree
 std::unordered_map<std::string, int> dren_tree(std::vector<std::string>& ifrom, std::vector<std::string>& ito);
 RcppExport SEXP _h3_dren_tree(SEXP ifromSEXP, SEXP itoSEXP) {
@@ -674,6 +739,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type ifrom(ifromSEXP);
     Rcpp::traits::input_parameter< std::vector<std::string>& >::type ito(itoSEXP);
     rcpp_result_gen = Rcpp::wrap(dren_tree(ifrom, ito));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dren_tree_dfs
+std::unordered_map<std::string, int> dren_tree_dfs(const std::vector<std::string>& ifrom, const std::vector<std::string>& ito);
+RcppExport SEXP _h3_dren_tree_dfs(SEXP ifromSEXP, SEXP itoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito(itoSEXP);
+    rcpp_result_gen = Rcpp::wrap(dren_tree_dfs(ifrom, ito));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -691,6 +768,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// dren_tree_fa_fast
+std::unordered_map<std::string, int> dren_tree_fa_fast(const std::vector<std::string>& ind, const std::vector<int>& fa, const std::vector<std::string>& ifrom, const std::vector<std::string>& ito);
+RcppExport SEXP _h3_dren_tree_fa_fast(SEXP indSEXP, SEXP faSEXP, SEXP ifromSEXP, SEXP itoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ind(indSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type fa(faSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom(ifromSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito(itoSEXP);
+    rcpp_result_gen = Rcpp::wrap(dren_tree_fa_fast(ind, fa, ifrom, ito));
+    return rcpp_result_gen;
+END_RCPP
+}
 // generalisation_verification
 std::vector<double> generalisation_verification(std::vector<std::string>& ifrom_fine, std::vector<std::string>& ito_fine, std::vector<std::string>& ifrom_coarse, std::vector<std::string>& ito_coarse, std::vector<std::string>& ind_fine, std::vector<int>& fa_fine, const int flow_num);
 RcppExport SEXP _h3_generalisation_verification(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP, SEXP ind_fineSEXP, SEXP fa_fineSEXP, SEXP flow_numSEXP) {
@@ -705,6 +796,40 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<int>& >::type fa_fine(fa_fineSEXP);
     Rcpp::traits::input_parameter< const int >::type flow_num(flow_numSEXP);
     rcpp_result_gen = Rcpp::wrap(generalisation_verification(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num));
+    return rcpp_result_gen;
+END_RCPP
+}
+// generalisation_verification_fast
+std::vector<double> generalisation_verification_fast(const std::vector<std::string>& ifrom_fine, const std::vector<std::string>& ito_fine, const std::vector<std::string>& ifrom_coarse, const std::vector<std::string>& ito_coarse, const std::vector<std::string>& ind_fine, const std::vector<int>& fa_fine, const int flow_num);
+RcppExport SEXP _h3_generalisation_verification_fast(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP, SEXP ind_fineSEXP, SEXP fa_fineSEXP, SEXP flow_numSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom_fine(ifrom_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito_fine(ito_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom_coarse(ifrom_coarseSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito_coarse(ito_coarseSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ind_fine(ind_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type fa_fine(fa_fineSEXP);
+    Rcpp::traits::input_parameter< const int >::type flow_num(flow_numSEXP);
+    rcpp_result_gen = Rcpp::wrap(generalisation_verification_fast(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num));
+    return rcpp_result_gen;
+END_RCPP
+}
+// generalisation_verification_with_penalty
+std::vector<double> generalisation_verification_with_penalty(const std::vector<std::string>& ifrom_fine, const std::vector<std::string>& ito_fine, const std::vector<std::string>& ifrom_coarse, const std::vector<std::string>& ito_coarse, const std::vector<std::string>& ind_fine, const std::vector<int>& fa_fine, const int flow_num);
+RcppExport SEXP _h3_generalisation_verification_with_penalty(SEXP ifrom_fineSEXP, SEXP ito_fineSEXP, SEXP ifrom_coarseSEXP, SEXP ito_coarseSEXP, SEXP ind_fineSEXP, SEXP fa_fineSEXP, SEXP flow_numSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom_fine(ifrom_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito_fine(ito_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ifrom_coarse(ifrom_coarseSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ito_coarse(ito_coarseSEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type ind_fine(ind_fineSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type fa_fine(fa_fineSEXP);
+    Rcpp::traits::input_parameter< const int >::type flow_num(flow_numSEXP);
+    rcpp_result_gen = Rcpp::wrap(generalisation_verification_with_penalty(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -768,17 +893,26 @@ static const R_CallMethodDef CallEntries[] = {
     {"_h3_gradient_aspect", (DL_FUNC) &_h3_gradient_aspect, 3},
     {"_h3_drainage", (DL_FUNC) &_h3_drainage, 2},
     {"_h3_flow_acc", (DL_FUNC) &_h3_flow_acc, 2},
+    {"_h3_flow_acc_optimized", (DL_FUNC) &_h3_flow_acc_optimized, 2},
     {"_h3_flow_acc_stnd", (DL_FUNC) &_h3_flow_acc_stnd, 2},
     {"_h3_fd_border_links", (DL_FUNC) &_h3_fd_border_links, 4},
     {"_h3_flow_dir_pf", (DL_FUNC) &_h3_flow_dir_pf, 2},
     {"_h3_fill_depr_Planchon", (DL_FUNC) &_h3_fill_depr_Planchon, 2},
     {"_h3_fill_depr_jd", (DL_FUNC) &_h3_fill_depr_jd, 2},
     {"_h3_cotat", (DL_FUNC) &_h3_cotat, 4},
+    {"_h3_cotat_optimized", (DL_FUNC) &_h3_cotat_optimized, 4},
     {"_h3_nsa", (DL_FUNC) &_h3_nsa, 3},
+    {"_h3_nsa_optimized", (DL_FUNC) &_h3_nsa_optimized, 3},
+    {"_h3_nsa_optimized_level1", (DL_FUNC) &_h3_nsa_optimized_level1, 3},
     {"_h3_vvrfra", (DL_FUNC) &_h3_vvrfra, 3},
+    {"_h3_vvrfra_optimized", (DL_FUNC) &_h3_vvrfra_optimized, 3},
     {"_h3_dren_tree", (DL_FUNC) &_h3_dren_tree, 2},
+    {"_h3_dren_tree_dfs", (DL_FUNC) &_h3_dren_tree_dfs, 2},
     {"_h3_dren_tree_fa", (DL_FUNC) &_h3_dren_tree_fa, 4},
+    {"_h3_dren_tree_fa_fast", (DL_FUNC) &_h3_dren_tree_fa_fast, 4},
     {"_h3_generalisation_verification", (DL_FUNC) &_h3_generalisation_verification, 7},
+    {"_h3_generalisation_verification_fast", (DL_FUNC) &_h3_generalisation_verification_fast, 7},
+    {"_h3_generalisation_verification_with_penalty", (DL_FUNC) &_h3_generalisation_verification_with_penalty, 7},
     {"_h3_negative_buffer", (DL_FUNC) &_h3_negative_buffer, 2},
     {NULL, NULL, 0}
 };

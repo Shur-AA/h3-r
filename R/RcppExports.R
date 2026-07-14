@@ -236,6 +236,10 @@ flow_acc <- function(ifrom, ito) {
     .Call(`_h3_flow_acc`, ifrom, ito)
 }
 
+flow_acc_optimized <- function(ifrom, ito) {
+    .Call(`_h3_flow_acc_optimized`, ifrom, ito)
+}
+
 flow_acc_stnd <- function(ifrom, ito) {
     .Call(`_h3_flow_acc_stnd`, ifrom, ito)
 }
@@ -260,24 +264,56 @@ cotat <- function(ifrom, ito, to_level, area_threshold) {
     .Call(`_h3_cotat`, ifrom, ito, to_level, area_threshold)
 }
 
+cotat_optimized <- function(ifrom, ito, to_level, area_threshold) {
+    .Call(`_h3_cotat_optimized`, ifrom, ito, to_level, area_threshold)
+}
+
 nsa <- function(h3ind, fa_val, to_level) {
     .Call(`_h3_nsa`, h3ind, fa_val, to_level)
+}
+
+nsa_optimized <- function(h3ind, fa_val, to_level) {
+    .Call(`_h3_nsa_optimized`, h3ind, fa_val, to_level)
+}
+
+nsa_optimized_level1 <- function(h3ind, fa_val, to_level) {
+    .Call(`_h3_nsa_optimized_level1`, h3ind, fa_val, to_level)
 }
 
 vvrfra <- function(ifrom, ito, to_level) {
     .Call(`_h3_vvrfra`, ifrom, ito, to_level)
 }
 
+vvrfra_optimized <- function(ifrom, ito, to_level) {
+    .Call(`_h3_vvrfra_optimized`, ifrom, ito, to_level)
+}
+
 dren_tree <- function(ifrom, ito) {
     .Call(`_h3_dren_tree`, ifrom, ito)
+}
+
+dren_tree_dfs <- function(ifrom, ito) {
+    .Call(`_h3_dren_tree_dfs`, ifrom, ito)
 }
 
 dren_tree_fa <- function(ind, fa, ifrom, ito) {
     .Call(`_h3_dren_tree_fa`, ind, fa, ifrom, ito)
 }
 
+dren_tree_fa_fast <- function(ind, fa, ifrom, ito) {
+    .Call(`_h3_dren_tree_fa_fast`, ind, fa, ifrom, ito)
+}
+
 generalisation_verification <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
     .Call(`_h3_generalisation_verification`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
+}
+
+generalisation_verification_fast <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
+    .Call(`_h3_generalisation_verification_fast`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
+}
+
+generalisation_verification_with_penalty <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
+    .Call(`_h3_generalisation_verification_with_penalty`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
 }
 
 negative_buffer <- function(input_plg, buf_size) {

@@ -84,16 +84,16 @@ rownames(hex_bnd_cntr) = seq(1, length(hex_bnd_cntr$ind), 1)
 
 # read common polygons
 
-bas4 = st_read("D:/3_Проекты/РФФИ сток/data/todelete.geojson")
+#bas4 = st_read("D:/3_Проекты/РФФИ сток/data/todelete.geojson")
 #%>%filter(HYBAS_ID == 1041213630)
 
-bas_plus = st_transform(bas4, crs = 3857) %>%
-            st_buffer(dist = 500) %>%
-            st_transform(crs = 4326)
+#bas_plus = st_transform(bas4, crs = 3857) %>%
+           # st_buffer(dist = 500) %>%
+           # st_transform(crs = 4326)
 
-bastile = st_crop(rast, bas_plus)
+#bastile = st_crop(rast, bas_plus)
 
-tab = h3::h3_raster_to_hex(bastile, 8) %>% na.omit()
+#tab = h3::h3_raster_to_hex(bastile, 8) %>% na.omit()
 
 
 
@@ -102,7 +102,7 @@ tab = h3::h3_raster_to_hex(bastile, 8) %>% na.omit()
 
 for (h in c(24, 25, 32)){
   print(h)
-  h = 25
+  h = 20
   start.time <- Sys.time()
   # преобразуем координаты и делаем полигон
   ahex = hex_bnd_cntr[h,] %>% select(-ind)
@@ -125,7 +125,7 @@ for (h in c(24, 25, 32)){
 
   # делаем буфер на 5 км, чтобы тайлы были внахлёст
   pol_plus = st_transform(pol, crs = 3857) %>%
-              st_buffer(dist = 130000) %>%
+              st_buffer(dist = 250000) %>%
               st_transform(crs = 4326)
 
 
@@ -176,15 +176,25 @@ for (h in c(24, 25, 32)){
 
 
 
-fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fd.csv")
+fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/3040441670/lena_3040441670_fd.csv")
 fdem = select(fdem, -`X`)
 colnames(fdem) = c('from', 'to')
 fa = h3::h3_flow_acc(fdem$from, fdem$to)
-write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fa.csv")
-fa = read.csv('C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_fa.csv') %>%
+write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/3040441670/lena_3040441670_fa.csv")
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/3040441670/lena_3040441670_fa.csv') %>%
   filter(`x` > 30)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/3040009130/lena_3040009130_faf.csv')
+write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/3040441670/lena_3040441670_faf.csv')
 
+
+
+fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa3_pro.csv")
+#fdem = select(fdem, -`X`)
+colnames(fdem) = c('from', 'to')
+fa = h3::h3_flow_acc(fdem$from, fdem$to)
+write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa3pro_fa.csv")
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa3pro_fa.csv') %>%
+  filter(`x` > 3)
+write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa3pro_faf.csv')
 
 
 # negative buffering
@@ -229,15 +239,16 @@ library(Matrix)
 library(data.table)
 
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra3.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/vvrfra3_fa.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
 fd = select(fd, `X`, `x`)
 colnames(fd) = c('from', 'to')
 fd = select(fd, from, to)
 kk = h3:::dren_tree_fa(fa$ind, fa$val, fd$from, fd$to)
-write.csv(kk, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/dren_vvrfra3.csv')
+write.csv(kk, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7_dt.csv')
+
 kk = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/dren_cotat5.csv')
 colnames(kk) = c('ind', 'num')
 kkk = filter(kk, num == 1) %>% select(ind)
@@ -255,83 +266,105 @@ dt = h3:::dren_tree(fd$from, fd$to)
 write.csv(dt, 'C:/Users/user/Downloads/gidro/drent_17.csv')
 
 #COTAT
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 7, 40)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat7.csv')
+cfd = h3:::cotat_optimized(fd$from, fd$to, 7, 7)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat7.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 6, 250)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat6.csv')
+cfd = h3:::cotat_optimized(fd$from, fd$to, 6, 49)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat6.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 5, 1700)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat5.csv')
+cfd = h3:::cotat_optimized(fd$from, fd$to, 5, 343)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat5.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 4, 12000)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat4.csv')
+cfd = h3:::cotat_optimized(fd$from, fd$to, 4, 2401)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat4.csv')
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_fd.csv')
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = h3:::cotat(fd$from, fd$to, 3, 90000)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/1041259950/congo_1041259950_cotat3.csv')
+cfd = h3:::cotat_optimized(fd$from, fd$to, 3, 16807)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3.csv')
 
 
 #VRFRA
 
-  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
   fd = select(fd, from, to)
-  cfd = h3:::vvrfra(fd$from, fd$to, 3)
-  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra3.csv')
+  cfd = h3:::vvrfra_optimized(fd$from, fd$to, 3)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra3.csv')
 
-  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
   fd = select(fd, from, to)
-  cfd = h3:::vvrfra(fd$from, fd$to, 4)
-  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra4.csv')
+  cfd = h3:::vvrfra_optimized(fd$from, fd$to, 4)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra4.csv')
 
-  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
   fd = select(fd, from, to)
-  cfd = h3:::vvrfra(fd$from, fd$to, 5)
-  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra5.csv')
+  cfd = h3:::vvrfra_optimized(fd$from, fd$to, 5)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra5.csv')
 
-  fd = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_level7_fd.csv')
+  fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
   fd = select(fd, from, to)
-  cfd = h3:::vvrfra(fd$from, fd$to, 6)
-  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_vvrfra_level7/congo_vvrfra6.csv')
+  cfd = h3:::vvrfra_optimized(fd$from, fd$to, 6)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra6.csv')
 
-
+  fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
+  fd = select(fd, from, to)
+  cfd = h3:::vvrfra_optimized(fd$from, fd$to, 7)
+  write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra7.csv')
 
 
 
 
 #NSA
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 3)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa3.csv')
+cfd = h3:::nsa_optimized(fa$ind, fa$val, 3)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa3.csv')
 
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 4)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa4.csv')
+cfd = h3:::nsa_optimized(fa$ind, fa$val, 4)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa4.csv')
 
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 5)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa5.csv')
+cfd = h3:::nsa_optimized(fa$ind, fa$val, 5)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa5.csv')
 
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_level7_fa.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
-cfd = h3:::nsa(fa$ind, fa$val, 6)
-write.csv(cfd, 'C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/congo_nsa6.csv')
+cfd = h3:::nsa_optimized(fa$ind, fa$val, 6)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa6.csv')
+
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
+fa = select(fa, `X`, `x`)
+colnames(fa) = c('ind', 'val')
+cfd = h3:::nsa_optimized_level1(fa$ind, fa$val, 7)
+write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7.csv')
+
+
+
+
+fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3.csv")
+#fdem = select(fdem, -`X`)
+colnames(fdem) = c('from', 'to')
+fa = h3:::flow_acc_optimized(fdem$from, fdem$to)
+write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_fa.csv")
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_fa.csv') %>%
+  filter(`x` > 3)
+write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_faf.csv')
+
 
 
 
