@@ -227,27 +227,18 @@ write.csv(buf_res, 'C:/Users/user/Downloads/gidro/Congo/1041213640/fd333b.csv')
 
 
 
-# COTAT testing
-library(dplyr)
-library(stars)
-library(sf)
-library(tidyverse)
-library(akima)
-library(tidyr)
-library(readxl)
-library(Matrix)
-library(data.table)
 
 
-fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7.csv')
-fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7_fa.csv')
+
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra6.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra6_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
 fd = select(fd, `X`, `x`)
 colnames(fd) = c('from', 'to')
 fd = select(fd, from, to)
-kk = h3:::dren_tree_fa(fa$ind, fa$val, fd$from, fd$to)
-write.csv(kk, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7_dt.csv')
+kk = h3:::dren_tree_dfs(fd$from, fd$to)
+write.csv(kk, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_vvrfra66_dt.csv')
 
 kk = read.csv('C:/Users/user/Downloads/gidro/Congo/congo_nsa_level7/dren_cotat5.csv')
 colnames(kk) = c('ind', 'num')
@@ -356,31 +347,95 @@ write.csv(cfd, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_nsa7.csv')
 
 
 
-fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3.csv")
+fdem = read.csv("C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv")
 #fdem = select(fdem, -`X`)
 colnames(fdem) = c('from', 'to')
-fa = h3:::flow_acc_optimized(fdem$from, fdem$to)
-write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_fa.csv")
-fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_fa.csv') %>%
-  filter(`x` > 3)
-write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat3_faf.csv')
+fa = h3:::flow_acc_catchment_area(fdem$from, fdem$to)
+write.csv(fa, "C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_ca.csv")
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_ca.csv') %>%
+  filter(`x` > 22)
+write.csv(fa, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_caf.csv')
 
 
+#3  37000
+#4  18000
+#5  3800
+#6  720
+#7  125
+#8  22
+
+
+
+
+
+
+
+library(dplyr)
+library(stars)
+library(sf)
+library(tidyverse)
+library(akima)
+library(tidyr)
+library(readxl)
+library(Matrix)
+library(data.table)
 
 
 # VERIFY
 
-
-fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')
+# блок, где дренажное дерево вычисляется внутри функции
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
 fd = select(fd, from, to)
-cfd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4.csv')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat5.csv')
 cfd = select(cfd, `X`, `x`)
 colnames(cfd) = c('from', 'to')
-fa = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fa.csv')
+fa = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fa.csv')
 fa = select(fa, `X`, `x`)
 colnames(fa) = c('ind', 'val')
-vg = h3:::generalisation_verification(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 50000)
-write.csv(vg, 'C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_cotat4_gv.csv')
+vg = h3:::generalisation_verification_penalty(fd$from, fd$to, cfd$from, cfd$to, fa$ind, fa$val, 1000000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat5_vgpen.csv')
+
+
+# блок, где дренажное дерево подаётся на вход
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
+fd = select(fd, from, to)
+dt = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_dt.csv')
+dt = select(dt, `X`, `x`)
+colnames(dt) = c('ind', 'val')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat7.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+vg = h3:::generalisation_ver_pen_area(fd$from, fd$to, cfd$from, cfd$to, dt$ind, dt$val, 10000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/verification/lena2_cotat7_vg_area.csv')
+
+
+#a = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/verification/lena2_cotat3_vg_area.csv')
+#a = select(a, x)
+#b = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/verification/lena2_cotat7_vg_area.csv')
+#b = select(b, x)
+#a = cbind(a, b)
+#write.csv(a, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/verification/lena2_cotat_vg_area.csv')
+
+
+# блок, где дд подаётся на вход и в финале используется водосборная площадь
+fd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_fd.csv')
+fd = select(fd, from, to)
+dt = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_dt.csv')
+dt = select(dt, `X`, `x`)
+colnames(dt) = c('ind', 'val')
+ca = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena_level8_ca.csv')
+ca = select(ca, `X`, `x`)
+colnames(ca) = c('ind', 'val')
+cfd = read.csv('C:/Users/user/Downloads/gidro/Lena/Lena_level8/lena2_cotat7.csv')
+cfd = select(cfd, `X`, `x`)
+colnames(cfd) = c('from', 'to')
+vg = h3:::gener_ver_pen_ca(fd$from, fd$to, cfd$from, cfd$to,
+                                        dt$ind, dt$val, ca$ind, ca$val, 10000)
+write.csv(vg, 'C:/Users/user/Downloads/gidro/Lena/Lena_level8/verification/lena2_cotat7_vg.csv')
+
+
+
+
 
 
 fd = read.csv('C:/Users/user/Downloads/gidro/Congo/1041156960/congo_1041156960_fd.csv')

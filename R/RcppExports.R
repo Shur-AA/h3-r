@@ -240,6 +240,10 @@ flow_acc_optimized <- function(ifrom, ito) {
     .Call(`_h3_flow_acc_optimized`, ifrom, ito)
 }
 
+flow_acc_catchment_area <- function(ifrom, ito) {
+    .Call(`_h3_flow_acc_catchment_area`, ifrom, ito)
+}
+
 flow_acc_stnd <- function(ifrom, ito) {
     .Call(`_h3_flow_acc_stnd`, ifrom, ito)
 }
@@ -292,28 +296,32 @@ dren_tree <- function(ifrom, ito) {
     .Call(`_h3_dren_tree`, ifrom, ito)
 }
 
-dren_tree_dfs <- function(ifrom, ito) {
-    .Call(`_h3_dren_tree_dfs`, ifrom, ito)
-}
-
 dren_tree_fa <- function(ind, fa, ifrom, ito) {
     .Call(`_h3_dren_tree_fa`, ind, fa, ifrom, ito)
-}
-
-dren_tree_fa_fast <- function(ind, fa, ifrom, ito) {
-    .Call(`_h3_dren_tree_fa_fast`, ind, fa, ifrom, ito)
 }
 
 generalisation_verification <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
     .Call(`_h3_generalisation_verification`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
 }
 
-generalisation_verification_fast <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
-    .Call(`_h3_generalisation_verification_fast`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
+generalisation_verification_opt <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
+    .Call(`_h3_generalisation_verification_opt`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
 }
 
-generalisation_verification_with_penalty <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
-    .Call(`_h3_generalisation_verification_with_penalty`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
+generalisation_verification_penalty <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num) {
+    .Call(`_h3_generalisation_verification_penalty`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_fine, fa_fine, flow_num)
+}
+
+generalisation_ver_penalty_dt <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, flow_num) {
+    .Call(`_h3_generalisation_ver_penalty_dt`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, flow_num)
+}
+
+generalisation_ver_pen_area <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, flow_num) {
+    .Call(`_h3_generalisation_ver_pen_area`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, flow_num)
+}
+
+gener_ver_pen_ca <- function(ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, ind_ca_fine, ca_fine, flow_num) {
+    .Call(`_h3_gener_ver_pen_ca`, ifrom_fine, ito_fine, ifrom_coarse, ito_coarse, ind_dt_fine, dt_fine, ind_ca_fine, ca_fine, flow_num)
 }
 
 negative_buffer <- function(input_plg, buf_size) {

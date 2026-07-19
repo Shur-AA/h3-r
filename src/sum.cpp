@@ -28,6 +28,17 @@ using namespace Rcpp;
 // internal functions
 
 
+
+
+
+
+
+
+
+
+
+
+
 // Dictionary of base cell's azimuth
 
 const std::map<std::string, int> bc_azimuth = {{"0", 218.290385106721},
@@ -1898,6 +1909,119 @@ std::unordered_map<std::string, double> flow_acc_optimized(
   return geotab;
 }
 
+
+
+
+
+// Flow accumulation, которая вычисляет
+// площадь водосбора в реальных площадях на земле
+
+// [[Rcpp::export]]
+std::unordered_map<std::string, double> flow_acc_catchment_area(
+                                        const std::vector<std::string>& ifrom,
+                                        const std::vector<std::string>& ito) {
+
+  std::unordered_map<std::string, double> geotab;
+
+  if (ifrom.size() != ito.size() || ifrom.empty()) {
+    return geotab;
+  }
+
+  const size_t n = ifrom.size();
+
+  // Конвертируем все строки в H3Index один раз
+  std::vector<H3Index> from_h3(n);
+  std::vector<H3Index> to_h3(n);
+
+  for (size_t i = 0; i < n; ++i) {
+    from_h3[i] = stringToH3(ifrom[i].c_str());
+    to_h3[i] = stringToH3(ito[i].c_str());
+  }
+
+  // Используем unordered_map для O(1) доступа
+  std::unordered_map<H3Index, H3Index> fromto;
+  fromto.reserve(n * 2);
+
+  // Инициализируем geotab со значениями 0 для всех источников
+  geotab.reserve(n * 2);
+  for (size_t i = 0; i < n; ++i) {
+    fromto[from_h3[i]] = to_h3[i];
+    geotab[ifrom[i]] = 0.0;
+  }
+
+  // Создаем обратный маппинг для быстрого поиска индекса
+  std::unordered_map<H3Index, std::string> h3_to_string;
+  h3_to_string.reserve(n * 2);
+  for (size_t i = 0; i < n; ++i) {
+    h3_to_string[from_h3[i]] = ifrom[i];
+    h3_to_string[to_h3[i]] = ito[i];
+  }
+
+  // Функция для преобразования H3Index в строку
+  auto h3_to_str = [&](H3Index h3) -> std::string {
+    auto it = h3_to_string.find(h3);
+    if (it != h3_to_string.end()) {
+      return it->second;
+    }
+    // Если не найдено, конвертируем на лету
+    char buffer[17];
+    h3ToString(h3, buffer, sizeof(buffer));
+    return std::string(buffer);
+  };
+
+  // Кэш для площадей ячеек, чтобы не вычислять повторно
+  std::unordered_map<H3Index, double> area_cache;
+  area_cache.reserve(n * 2);
+
+  // Функция для получения площади ячейки в км² с кэшированием
+  auto get_area_km2 = [&](H3Index h3) -> double {
+    auto it = area_cache.find(h3);
+    if (it != area_cache.end()) {
+      return it->second;
+    }
+    // cellAreaM2 возвращает площадь в квадратных метрах
+    // Переводим в квадратные километры (делим на 1 000 000)
+    double area_km2 = cellAreaM2(h3) / 1000000.0;
+    area_cache[h3] = area_km2;
+    return area_km2;
+  };
+
+  // Обработка потоков
+  std::unordered_set<H3Index> visited;
+  visited.reserve(1024);
+
+  for (const auto& pair : fromto) {
+    H3Index current = pair.second; // начинаем с целевой ячейки
+
+    // Накапливаем площадь для целевой ячейки
+    geotab[h3_to_str(current)] += get_area_km2(pair.first); // площадь ячейки-источника
+
+    visited.clear();
+    visited.insert(current);
+
+    while (true) {
+      auto it = fromto.find(current);
+      if (it == fromto.end()) {
+        break; // Конец потока
+      }
+
+      H3Index next = it->second;
+
+      // Проверка на цикл
+      if (visited.find(next) != visited.end()) {
+        break; // Обнаружен цикл
+      }
+      visited.insert(next);
+
+      // Накапливаем площадь ячейки-источника для следующей целевой ячейки
+      geotab[h3_to_str(next)] += get_area_km2(current);
+
+      current = next;
+    }
+  }
+
+  return geotab;
+}
 
 
 
@@ -4342,199 +4466,6 @@ std::unordered_map<std::string, int> dren_tree(std::vector<std::string> & ifrom,
 
 
 
-// Reconstruction and ordering of flows (AI)
-// as the first step of verification
-// uses flow directions as in-data
-
-// [[Rcpp::export]]
-std::unordered_map<std::string, int> dren_tree_dfs(
-    const std::vector<std::string>& ifrom,
-    const std::vector<std::string>& ito) {
-
-  std::unordered_map<std::string, int> ftab;
-
-  if (ifrom.size() != ito.size() || ifrom.empty()) {
-    return ftab;
-  }
-
-  const size_t n = ifrom.size();
-
-  // ============================================================
-  // КОНВЕРТАЦИЯ
-  // ============================================================
-  std::vector<H3Index> from_h3(n);
-  std::vector<H3Index> to_h3(n);
-  std::unordered_map<H3Index, std::string> h3_to_str;
-  h3_to_str.reserve(n * 2);
-
-  for (size_t i = 0; i < n; ++i) {
-    from_h3[i] = stringToH3(ifrom[i].c_str());
-    to_h3[i] = stringToH3(ito[i].c_str());
-
-    char buffer[17];
-    h3ToString(from_h3[i], buffer, sizeof(buffer));
-    h3_to_str[from_h3[i]] = std::string(buffer);
-    h3ToString(to_h3[i], buffer, sizeof(buffer));
-    h3_to_str[to_h3[i]] = std::string(buffer);
-  }
-
-  // ============================================================
-  // КАРТЫ ПОТОКА
-  // ============================================================
-  std::unordered_map<H3Index, H3Index> flow_map;
-  flow_map.reserve(n * 2);
-
-  // Обратная карта: кто течет в данную ячейку
-  std::unordered_map<H3Index, std::vector<H3Index> > reverse_map;
-  reverse_map.reserve(n * 2);
-
-  for (size_t i = 0; i < n; ++i) {
-    flow_map[from_h3[i]] = to_h3[i];
-    reverse_map[to_h3[i]].push_back(from_h3[i]);
-  }
-
-  // ============================================================
-  // FLOW ACCUMULATION (используем итеративный подход вместо рекурсии)
-  // ============================================================
-  std::unordered_map<H3Index, double> flowacc;
-  flowacc.reserve(n * 2);
-
-  // Инициализация
-  for (size_t i = 0; i < n; ++i) {
-    flowacc[from_h3[i]] = 1.0; // Каждая ячейка имеет вес 1
-    flowacc[to_h3[i]] = 0.0;
-  }
-
-  // Используем итеративный подход для аккумуляции
-  // Находим все ячейки, которые имеют выход (устья)
-  std::vector<H3Index> outlets;
-  for (std::unordered_map<H3Index, H3Index>::const_iterator it = flow_map.begin();
-       it != flow_map.end(); ++it) {
-    if (flow_map.find(it->second) == flow_map.end()) {
-      outlets.push_back(it->first);
-    }
-  }
-
-  // Для каждой ячейки проходим вверх по потоку
-  for (std::vector<H3Index>::const_iterator outlet_it = outlets.begin();
-       outlet_it != outlets.end(); ++outlet_it) {
-    H3Index current = *outlet_it;
-
-    // Используем стек для обхода
-    std::vector<H3Index> stack;
-    stack.push_back(current);
-
-    while (!stack.empty()) {
-      H3Index cell = stack.back();
-      stack.pop_back();
-
-      // Ищем, кто течет в эту ячейку
-      std::unordered_map<H3Index, std::vector<H3Index> >::const_iterator rev_it =
-        reverse_map.find(cell);
-      if (rev_it != reverse_map.end()) {
-        const std::vector<H3Index>& upstream_cells = rev_it->second;
-        for (std::vector<H3Index>::const_iterator up_it = upstream_cells.begin();
-             up_it != upstream_cells.end(); ++up_it) {
-          H3Index upstream = *up_it;
-          flowacc[upstream] += flowacc[cell];
-          stack.push_back(upstream);
-        }
-      }
-    }
-  }
-
-  // ============================================================
-  // ПОСТРОЕНИЕ ДЕРЕВА (используем DFS)
-  // ============================================================
-  ftab.reserve(flow_map.size() + 1);
-
-  // Кэш соседей (используем std::vector вместо std::array для C++11)
-  std::unordered_map<H3Index, std::vector<H3Index> > neighbor_cache;
-  neighbor_cache.reserve(flow_map.size() / 2);
-
-  // Сортируем ячейки по flow accumulation
-  std::vector<std::pair<double, H3Index> > sorted_cells;
-  sorted_cells.reserve(flowacc.size());
-  for (std::unordered_map<H3Index, double>::const_iterator it = flowacc.begin();
-       it != flowacc.end(); ++it) {
-    sorted_cells.push_back(std::make_pair(it->second, it->first));
-  }
-
-  // Сортировка с использованием функции сравнения (C++11 совместимая)
-  std::sort(sorted_cells.begin(), sorted_cells.end(),
-            std::greater<std::pair<double, H3Index> >());
-
-  int current_fnum = 1;
-  const int RING_SIZE = 6;
-
-  for (std::vector<std::pair<double, H3Index> >::const_iterator it = sorted_cells.begin();
-       it != sorted_cells.end(); ++it) {
-    const H3Index& cell = it->second;
-
-    std::unordered_map<H3Index, std::string>::const_iterator str_it = h3_to_str.find(cell);
-    if (str_it == h3_to_str.end()) continue;
-
-    if (ftab.find(str_it->second) != ftab.end()) continue;
-
-    // Начинаем новый поток
-    ftab[str_it->second] = current_fnum;
-
-    // DFS для поиска всех ячеек в этом потоке
-    std::vector<H3Index> stack;
-    stack.push_back(cell);
-
-    while (!stack.empty()) {
-      H3Index current = stack.back();
-      stack.pop_back();
-
-      // Получаем соседей (с кэшированием)
-      std::vector<H3Index> neighbors;
-      std::unordered_map<H3Index, std::vector<H3Index> >::iterator cache_it =
-        neighbor_cache.find(current);
-
-      if (cache_it != neighbor_cache.end()) {
-        neighbors = cache_it->second;
-      } else {
-        H3Index h3_neighbors[RING_SIZE];
-        hexRing(current, 1, h3_neighbors);
-
-        neighbors.reserve(RING_SIZE);
-        for (int i = 0; i < RING_SIZE; ++i) {
-          if (h3_neighbors[i] != 0) {
-            neighbors.push_back(h3_neighbors[i]);
-          }
-        }
-        neighbor_cache[current] = neighbors;
-      }
-
-      // Ищем соседей, которые текут в current
-      for (std::vector<H3Index>::const_iterator neigh_it = neighbors.begin();
-           neigh_it != neighbors.end(); ++neigh_it) {
-        H3Index neighbor = *neigh_it;
-
-        std::unordered_map<H3Index, H3Index>::const_iterator flow_it =
-          flow_map.find(neighbor);
-        if (flow_it != flow_map.end() && flow_it->second == current) {
-          std::unordered_map<H3Index, std::string>::const_iterator str_neighbor =
-            h3_to_str.find(neighbor);
-          if (str_neighbor != h3_to_str.end() &&
-              ftab.find(str_neighbor->second) == ftab.end()) {
-            ftab[str_neighbor->second] = current_fnum;
-            stack.push_back(neighbor);
-          }
-        }
-      }
-    }
-
-    current_fnum++;
-  }
-
-  ftab["max_num"] = current_fnum;
-  return ftab;
-}
-
-
-
 // Reconstruction and ordering of flows
 // as the first step of verification
 // uses flow accumulation as in-data
@@ -4626,196 +4557,6 @@ std::unordered_map<std::string, int> dren_tree_fa(std::vector<std::string> & ind
 }
 
 
-
-
-
-// Reconstruction and ordering of flows (AI)
-// as the first step of verification
-// uses flow accumulation as in-data
-
-// [[Rcpp::export]]
-std::unordered_map<std::string, int> dren_tree_fa_fast(
-    const std::vector<std::string>& ind,
-    const std::vector<int>& fa,
-    const std::vector<std::string>& ifrom,
-    const std::vector<std::string>& ito) {
-
-  std::unordered_map<std::string, int> ftab;
-
-  if (ind.size() != fa.size() || ifrom.size() != ito.size() || ind.empty()) {
-    return ftab;
-  }
-
-  const size_t n = ind.size();
-  const size_t nn = ifrom.size();
-
-  // ============================================================
-  // ШАГ 1: Маппинг строк → индексы
-  // ============================================================
-  std::unordered_map<std::string, size_t> str_to_idx;
-  std::unordered_map<size_t, std::string> idx_to_str;
-  str_to_idx.reserve((n + nn) * 2);
-  idx_to_str.reserve((n + nn) * 2);
-
-  std::vector<H3Index> all_h3;
-  all_h3.reserve((n + nn) * 2);
-
-  // Функция добавления строки (C++11 совместимая)
-  std::function<size_t(const std::string&)> add_string =
-    [&](const std::string& s) -> size_t {
-      std::unordered_map<std::string, size_t>::const_iterator it = str_to_idx.find(s);
-      if (it != str_to_idx.end()) {
-        return it->second;
-      }
-      size_t idx = idx_to_str.size();
-      str_to_idx[s] = idx;
-      idx_to_str[idx] = s;
-      all_h3.push_back(stringToH3(s.c_str()));
-      return idx;
-    };
-
-    // Добавляем все строки
-    std::vector<size_t> ind_idx(n);
-    for (size_t i = 0; i < n; ++i) {
-      ind_idx[i] = add_string(ind[i]);
-    }
-
-    std::vector<size_t> from_idx(nn);
-    std::vector<size_t> to_idx(nn);
-    for (size_t i = 0; i < nn; ++i) {
-      from_idx[i] = add_string(ifrom[i]);
-      to_idx[i] = add_string(ito[i]);
-    }
-
-    const size_t total_cells = idx_to_str.size();
-
-    // ============================================================
-    // ШАГ 2: Flow accumulation (вектор вместо unordered_map)
-    // ============================================================
-    std::vector<double> flowacc(total_cells, 0.0);
-    for (size_t i = 0; i < n; ++i) {
-      flowacc[ind_idx[i]] = static_cast<double>(fa[i]);
-    }
-
-    // ============================================================
-    // ШАГ 3: Карта потока (вектор вместо unordered_map)
-    // ============================================================
-    std::vector<size_t> flow_map(total_cells, SIZE_MAX);
-    for (size_t i = 0; i < nn; ++i) {
-      flow_map[from_idx[i]] = to_idx[i];
-    }
-
-    // ============================================================
-    // ШАГ 4: Построение очереди с приоритетом
-    // ============================================================
-    std::vector<std::pair<double, size_t> > fa_vector;
-    fa_vector.reserve(total_cells);
-
-    for (size_t i = 0; i < total_cells; ++i) {
-      if (flowacc[i] > 0) {
-        fa_vector.push_back(std::make_pair(flowacc[i], i));
-      }
-    }
-
-    // Функция сравнения для сортировки (C++11 совместимая)
-    struct CompareDescending {
-      bool operator()(const std::pair<double, size_t>& a,
-                    const std::pair<double, size_t>& b) const {
-        return a.first > b.first;
-      }
-    };
-
-    std::sort(fa_vector.begin(), fa_vector.end(), CompareDescending());
-
-    // ============================================================
-    // ШАГ 5: Построение дерева дренажа
-    // ============================================================
-    ftab.reserve(total_cells + 1);
-
-    // Кэш соседей (используем vector вместо array для C++11)
-    std::unordered_map<size_t, std::vector<size_t> > neighbor_cache;
-    neighbor_cache.reserve(total_cells / 2);
-
-    // Массив для отметки посещенных
-    std::vector<bool> visited(total_cells, false);
-
-    int current_fnum = 1;
-    const int RING_SIZE = 6;
-
-    // Получаем H3Index для всех ячеек
-    std::vector<H3Index> h3_cache(total_cells);
-    for (size_t i = 0; i < total_cells; ++i) {
-      h3_cache[i] = stringToH3(idx_to_str[i].c_str());
-    }
-
-    for (std::vector<std::pair<double, size_t> >::const_iterator it = fa_vector.begin();
-         it != fa_vector.end(); ++it) {
-      size_t cell_idx = it->second;
-
-      if (visited[cell_idx]) continue;
-
-      // Начинаем новый поток
-      ftab[idx_to_str[cell_idx]] = current_fnum;
-      visited[cell_idx] = true;
-
-      // DFS
-      std::vector<size_t> stack;
-      stack.reserve(1024);
-      stack.push_back(cell_idx);
-
-      while (!stack.empty()) {
-        size_t current = stack.back();
-        stack.pop_back();
-
-        // Получаем соседей (с кэшированием)
-        std::vector<size_t> neighbors;
-        std::unordered_map<size_t, std::vector<size_t> >::iterator cache_it =
-          neighbor_cache.find(current);
-
-        if (cache_it != neighbor_cache.end()) {
-          neighbors = cache_it->second;
-        } else {
-          H3Index h3_neighbors[RING_SIZE];
-          hexRing(h3_cache[current], 1, h3_neighbors);
-
-          neighbors.reserve(RING_SIZE);
-          for (int i = 0; i < RING_SIZE; ++i) {
-            if (h3_neighbors[i] != 0) {
-              // Ищем индекс для этого H3Index
-              char buffer[17];
-              h3ToString(h3_neighbors[i], buffer, sizeof(buffer));
-              std::string neighbor_str(buffer);
-              std::unordered_map<std::string, size_t>::const_iterator str_it =
-                str_to_idx.find(neighbor_str);
-              if (str_it != str_to_idx.end()) {
-                neighbors.push_back(str_it->second);
-              }
-            }
-          }
-
-          neighbor_cache[current] = neighbors;
-        }
-
-        // Ищем соседей, которые текут в current
-        for (std::vector<size_t>::const_iterator neigh_it = neighbors.begin();
-             neigh_it != neighbors.end(); ++neigh_it) {
-          size_t neighbor = *neigh_it;
-          if (visited[neighbor]) continue;
-
-          if (flow_map[neighbor] == current) {
-            ftab[idx_to_str[neighbor]] = current_fnum;
-            visited[neighbor] = true;
-            stack.push_back(neighbor);
-          }
-        }
-      }
-
-      current_fnum++;
-    }
-
-    ftab["max_num"] = current_fnum;
-    return ftab;
-}
 
 
 
@@ -4971,170 +4712,288 @@ std::vector<double> generalisation_verification(std::vector<std::string> & ifrom
 
 
 
-// Second step of verification
-// uses fine and coarse from-to tabs as in-data
 
 // [[Rcpp::export]]
-std::vector<double> generalisation_verification_fast(
-    const std::vector<std::string>& ifrom_fine,
-    const std::vector<std::string>& ito_fine,
-    const std::vector<std::string>& ifrom_coarse,
-    const std::vector<std::string>& ito_coarse,
-    const std::vector<std::string>& ind_fine,
-    const std::vector<int>& fa_fine,
-    const int flow_num) {
+std::vector<double> generalisation_verification_opt(std::vector<std::string> & ifrom_fine,
+                                                std::vector<std::string> & ito_fine,
+                                                std::vector<std::string> & ifrom_coarse,
+                                                std::vector<std::string> & ito_coarse,
+                                                std::vector<std::string> & ind_fine,
+                                                std::vector<int> & fa_fine,
+                                                const int flow_num){
+    try{
+      if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
+        throw 2;
+      }}
+    catch(int x){
+      std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+    }
 
-  std::vector<double> intermed_result;
-  intermed_result.reserve(100);
+    const int n_fine = ifrom_fine.size();
+    const int n_coarse = ifrom_coarse.size();
 
-  if (ifrom_fine.size() != ito_fine.size() ||
-      ifrom_coarse.size() != ito_coarse.size() ||
-      ind_fine.size() != fa_fine.size()) {
+    const int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].c_str()));
+    const int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].c_str()));
+
+    std::unordered_map<std::string, std::string> fromto_coarse;
+    fromto_coarse.reserve(n_coarse);
+    for (int i = 0; i < n_coarse; i++){
+      if (ifrom_coarse[i] != ito_coarse[i]){
+        fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
+      }
+    }
+
+    std::unordered_map<std::string, std::string> fromto_fine;
+    fromto_fine.reserve(n_fine);
+    for (int i = 0; i < n_fine; i++){
+      if (ifrom_fine[i] != ito_fine[i]){
+        fromto_fine[ifrom_fine[i]] = ito_fine[i];
+      }
+    }
+
+    // step 1 - form drainage tree
+    std::unordered_map<std::string, int> dtree = dren_tree_fa(ind_fine, fa_fine,
+                                                              ifrom_fine, ito_fine);
+
+    // ИСПРАВЛЕНИЕ 1: Инвертируем dtree для быстрого доступа, но сохраняем точную логику фильтрации
+    std::unordered_map<int, std::vector<std::string>> flow_to_cells;
+    const int max_num = dtree["max_num"];
+    flow_to_cells.reserve(max_num);
+
+    for (const auto& pair : dtree) {
+      if (pair.first != "max_num") {
+        flow_to_cells[pair.second].push_back(pair.first);
+      }
+    }
+
+    // Pre-allocate working containers
+    std::unordered_map<std::string, int> this_coarse_cells;
+    this_coarse_cells.reserve(50);
+
+    // ИСПРАВЛЕНИЕ 2: Кэшируем H3_to_parent для всех индексов, которые могут встретиться
+    std::unordered_map<std::string, std::string> parent_cache;
+
+    double all_acc_nominator = 0;
+    double all_acc_denominator = 1;
+    std::vector<double> intermed_result;
+
+    const int effective_flow_num = std::min(flow_num, max_num);
+
+    for (int i = 1; i < effective_flow_num; i++){
+      std::cout<<"process "<<i<<"th flow"<<std::endl;
+
+      // ИСПРАВЛЕНИЕ 3: Используем инвертированный индекс, но логика получения fine_flow точно та же
+      auto it = flow_to_cells.find(i);
+      if (it == flow_to_cells.end()) continue;
+
+      const std::vector<std::string>& fine_flow = it->second;
+      const int n_flow = fine_flow.size();
+
+      // ИСПРАВЛЕНИЕ 4: Восстанавливаем точную оригинальную логику поиска last_big_cell
+      this_coarse_cells.clear();
+
+      std::string last_big_cell;
+      bool first_cell = true;
+
+      for (const auto & elmt : fine_flow){
+        // Кэшируем parent при необходимости
+        std::string parent;
+        auto parent_it = parent_cache.find(elmt);
+        if (parent_it != parent_cache.end()) {
+          parent = parent_it->second;
+        } else {
+          parent = H3_to_parent(elmt, h3_level_coarse);
+          parent_cache[elmt] = parent;
+        }
+
+        this_coarse_cells[parent]++;
+
+        if (first_cell) {
+          last_big_cell = parent;
+          first_cell = false;
+        }
+
+        // ИСПРАВЛЕНИЕ 5: Точное восстановление оригинальной логики проверки
+        auto fromto_it = fromto_fine.find(elmt);
+        if (fromto_it != fromto_fine.end()){
+          // Оригинал использовал std::find для поиска в векторе
+          if (std::find(fine_flow.begin(), fine_flow.end(), fromto_it->second)
+                == fine_flow.end()){
+            last_big_cell = parent;
+          }
+        } else {
+          last_big_cell = parent;
+        }
+      }
+
+      // go through coarse cells:
+      if (this_coarse_cells.size() > 1){
+        // ИСПРАВЛЕНИЕ 6: Восстанавливаем оригинальные переменные как в исходном коде
+        std::vector<int> is_correct;
+        int fi_nominator = 0;
+
+        for (const auto & elmt : this_coarse_cells){
+          int correct = 0;
+          if (elmt.first != last_big_cell){
+            std::string this_cell = elmt.first;
+            int count = 0;
+
+            // ИСПРАВЛЕНИЕ 7: Точная оригинальная логика цикла while
+            while(true){
+              auto coarse_it = fromto_coarse.find(this_cell);
+              if (coarse_it != fromto_coarse.end()){
+                if (this_coarse_cells.find(coarse_it->second) != this_coarse_cells.end() ||
+                    coarse_it->second == last_big_cell){
+                  correct = 1;
+                  break;
+                } else {
+                  count++;
+                  this_cell = coarse_it->second;
+                  if (count > 3000) {break;}
+                }
+              } else {
+                break;
+              }
+            }
+          }
+          is_correct.push_back(correct);  // Сохраняем, как в оригинале
+          fi_nominator += correct * elmt.second;
+        }
+
+        // ИСПРАВЛЕНИЕ 8: Точная оригинальная логика вычислений
+        int denom = n_flow - this_coarse_cells[last_big_cell];
+        double fi = (double)fi_nominator / (double)denom;
+
+        all_acc_nominator += (fi * n_flow);
+        all_acc_denominator += n_flow;
+      }
+
+      // ИСПРАВЛЕНИЕ 9: Точная оригинальная логика отчетности
+      if (i >= 100){
+        if (i % 100 == 0){
+          intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+        }
+      } else {
+        if (i % 10 == 0){
+          intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+        }
+      }
+    }
+
+    std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
+    double all_accuracy = all_acc_nominator / all_acc_denominator;
+    std::cout<<"number of flows: "<<max_num<<std::endl;
+
+    intermed_result.push_back(all_accuracy);
     return intermed_result;
   }
 
-  const size_t n_fine = ifrom_fine.size();
-  const size_t n_coarse = ifrom_coarse.size();
 
-  // ============================================================
-  // ШАГ 1: Создание единого маппинга строк → индексы
-  // ============================================================
-  std::unordered_map<std::string, size_t> str_to_idx;
-  std::unordered_map<size_t, std::string> idx_to_str;
-  std::vector<H3Index> idx_to_h3;
 
-  str_to_idx.reserve((n_fine + n_coarse) * 2);
-  idx_to_str.reserve((n_fine + n_coarse) * 2);
-  idx_to_h3.reserve((n_fine + n_coarse) * 2);
 
-  auto get_index = [&](const std::string& s) -> size_t {
-    auto it = str_to_idx.find(s);
-    if (it != str_to_idx.end()) {
-      return it->second;
-    }
-    size_t idx = idx_to_str.size();
-    str_to_idx[s] = idx;
-    idx_to_str[idx] = s;
-    idx_to_h3.push_back(stringToH3(s.c_str()));
-    return idx;
-  };
+// Исходная функция с введённым штрафом
 
-  // Получаем индексы для всех строк
-  std::vector<size_t> from_fine_idx(n_fine);
-  std::vector<size_t> to_fine_idx(n_fine);
-  for (size_t i = 0; i < n_fine; ++i) {
-    from_fine_idx[i] = get_index(ifrom_fine[i]);
-    to_fine_idx[i] = get_index(ito_fine[i]);
+// [[Rcpp::export]]
+std::vector<double> generalisation_verification_penalty(std::vector<std::string> & ifrom_fine,
+                                                std::vector<std::string> & ito_fine,
+                                                std::vector<std::string> & ifrom_coarse,
+                                                std::vector<std::string> & ito_coarse,
+                                                std::vector<std::string> & ind_fine,
+                                                std::vector<int> & fa_fine,
+                                                const int flow_num){
+  try{
+    if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
+      throw 2;
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
 
-  std::vector<size_t> from_coarse_idx(n_coarse);
-  std::vector<size_t> to_coarse_idx(n_coarse);
-  for (size_t i = 0; i < n_coarse; ++i) {
-    from_coarse_idx[i] = get_index(ifrom_coarse[i]);
-    to_coarse_idx[i] = get_index(ito_coarse[i]);
-  }
+  const int n_fine = ifrom_fine.size();
+  const int n_coarse = ifrom_coarse.size();
 
-  std::vector<size_t> ind_fine_idx(ind_fine.size());
-  for (size_t i = 0; i < ind_fine.size(); ++i) {
-    ind_fine_idx[i] = get_index(ind_fine[i]);
-  }
+  const int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].c_str()));
+  const int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].c_str()));
 
-  const size_t total_cells = idx_to_str.size();
-
-  // ============================================================
-  // ШАГ 2: Карты потоков (векторы)
-  // ============================================================
-  std::vector<size_t> flow_fine(total_cells, SIZE_MAX);
-  for (size_t i = 0; i < n_fine; ++i) {
-    if (from_fine_idx[i] != to_fine_idx[i]) {
-      flow_fine[from_fine_idx[i]] = to_fine_idx[i];
+  std::unordered_map<std::string, std::string> fromto_coarse;
+  fromto_coarse.reserve(n_coarse);
+  for (int i = 0; i < n_coarse; i++){
+    if (ifrom_coarse[i] != ito_coarse[i]){
+      fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
     }
   }
 
-  std::vector<size_t> flow_coarse(total_cells, SIZE_MAX);
-  for (size_t i = 0; i < n_coarse; ++i) {
-    if (from_coarse_idx[i] != to_coarse_idx[i]) {
-      flow_coarse[from_coarse_idx[i]] = to_coarse_idx[i];
+  std::unordered_map<std::string, std::string> fromto_fine;
+  fromto_fine.reserve(n_fine);
+  for (int i = 0; i < n_fine; i++){
+    if (ifrom_fine[i] != ito_fine[i]){
+      fromto_fine[ifrom_fine[i]] = ito_fine[i];
     }
   }
 
-  // ============================================================
-  // ШАГ 3: Получение дерева дренажа
-  // ============================================================
-  std::unordered_map<std::string, int> dtree = dren_tree_fa_fast(
-    ind_fine, fa_fine, ifrom_fine, ito_fine);
+  // step 1 - form drainage tree
+  std::unordered_map<std::string, int> dtree = dren_tree_fa(ind_fine, fa_fine,
+                                                            ifrom_fine, ito_fine);
 
-  // ============================================================
-  // ШАГ 4: Группировка по потокам (используем индексы)
-  // ============================================================
-  std::unordered_map<int, std::vector<size_t>> flow_to_indices;
-  flow_to_indices.reserve(dtree.size());
+  // Инвертируем dtree для быстрого доступа
+  std::unordered_map<int, std::vector<std::string>> flow_to_cells;
+  const int max_num = dtree["max_num"];
+  flow_to_cells.reserve(max_num);
 
   for (const auto& pair : dtree) {
-    if (pair.first == "max_num") continue;
-    int flow_id = pair.second;
-    size_t idx = str_to_idx[pair.first];
-    flow_to_indices[flow_id].push_back(idx);
+    if (pair.first != "max_num") {
+      flow_to_cells[pair.second].push_back(pair.first);
+    }
   }
 
-  // ============================================================
-  // ШАГ 5: Кэш для родителей
-  // ============================================================
-  std::vector<size_t> parent_cache(total_cells, SIZE_MAX);
-  int coarse_level = h3GetResolution(idx_to_h3[0]); // Используем первую ячейку
+  // Pre-allocate working containers
+  std::unordered_map<std::string, int> this_coarse_cells;
+  this_coarse_cells.reserve(50);
 
-  auto get_parent_idx = [&](size_t idx) -> size_t {
-    if (parent_cache[idx] != SIZE_MAX) {
-      return parent_cache[idx];
-    }
-    H3Index parent = h3ToParent(idx_to_h3[idx], coarse_level);
-    char buffer[17];
-    h3ToString(parent, buffer, sizeof(buffer));
-    std::string parent_str(buffer);
-    auto it = str_to_idx.find(parent_str);
-    size_t parent_idx = (it != str_to_idx.end()) ? it->second : SIZE_MAX;
-    parent_cache[idx] = parent_idx;
-    return parent_idx;
-  };
+  // Кэшируем H3_to_parent
+  std::unordered_map<std::string, std::string> parent_cache;
 
-  // ============================================================
-  // ШАГ 6: Основной цикл
-  // ============================================================
-  double all_acc_nominator = 0.0;
-  double all_acc_denominator = 1.0;
+  double all_acc_nominator = 0;
+  double all_acc_denominator = 1;
+  std::vector<double> intermed_result;
 
-  int max_flow_num = dtree["max_num"];
-  int actual_flow_num = std::min(flow_num, max_flow_num);
+  const int effective_flow_num = std::min(flow_num, max_num);
 
-  for (int flow_id = 1; flow_id < actual_flow_num; ++flow_id) {
-    auto cells_it = flow_to_indices.find(flow_id);
-    if (cells_it == flow_to_indices.end()) continue;
+  for (int i = 1; i < effective_flow_num; i++){
+    std::cout<<"process "<<i<<"th flow"<<std::endl;
 
-    const std::vector<size_t>& flow_indices = cells_it->second;
-    size_t n_flow = flow_indices.size();
+    auto it = flow_to_cells.find(i);
+    if (it == flow_to_cells.end()) continue;
 
-    if (n_flow == 0) continue;
+    const std::vector<std::string>& fine_flow = it->second;
+    const int n_flow = fine_flow.size();
 
-    // ============================================================
-    // ШАГ 7: Анализ потока
-    // ============================================================
-    std::unordered_map<size_t, int> coarse_counts;
-    coarse_counts.reserve(n_flow);
+    this_coarse_cells.clear();
 
-    std::unordered_set<size_t> flow_set;
-    flow_set.reserve(n_flow);
-    for (size_t idx : flow_indices) {
-      flow_set.insert(idx);
-    }
+    std::string last_big_cell;
+    bool first_cell = true;
 
-    size_t last_big_cell = get_parent_idx(flow_indices[0]);
+    for (const auto & elmt : fine_flow){
+      std::string parent;
+      auto parent_it = parent_cache.find(elmt);
+      if (parent_it != parent_cache.end()) {
+        parent = parent_it->second;
+      } else {
+        parent = H3_to_parent(elmt, h3_level_coarse);
+        parent_cache[elmt] = parent;
+      }
 
-    for (size_t idx : flow_indices) {
-      size_t parent = get_parent_idx(idx);
-      coarse_counts[parent]++;
+      this_coarse_cells[parent]++;
 
-      if (flow_fine[idx] != SIZE_MAX) {
-        if (flow_set.find(flow_fine[idx]) == flow_set.end()) {
+      if (first_cell) {
+        last_big_cell = parent;
+        first_cell = false;
+      }
+
+      auto fromto_it = fromto_fine.find(elmt);
+      if (fromto_it != fromto_fine.end()){
+        if (std::find(fine_flow.begin(), fine_flow.end(), fromto_it->second)
+              == fine_flow.end()){
           last_big_cell = parent;
         }
       } else {
@@ -5142,72 +5001,271 @@ std::vector<double> generalisation_verification_fast(
       }
     }
 
-    // ============================================================
-    // ШАГ 8: Проверка корректности
-    // ============================================================
-    if (coarse_counts.size() > 1) {
-      int fi_nominator = 0;
-      int denom = n_flow - coarse_counts[last_big_cell];
+    // go through coarse cells:
+    if (this_coarse_cells.size() > 1){
+      std::vector<int> is_correct;
+      double fi_nominator = 0;  // Изменено на double для точности штрафов
 
-      if (denom > 0) {
-        std::unordered_set<size_t> coarse_set;
-        coarse_set.reserve(coarse_counts.size());
-        for (const auto& pair : coarse_counts) {
-          coarse_set.insert(pair.first);
-        }
+      for (const auto & elmt : this_coarse_cells){
+        double correct = 0;  // Изменено на double
+        if (elmt.first != last_big_cell){
+          std::string this_cell = elmt.first;
+          int count = 0;
+          bool found = false;
 
-        for (const auto& pair : coarse_counts) {
-          size_t coarse_cell = pair.first;
-          int count = pair.second;
-
-          if (coarse_cell != last_big_cell) {
-            bool is_correct = false;
-            size_t current = coarse_cell;
-            int steps = 0;
-            const int MAX_STEPS = 3000;
-
-            while (steps < MAX_STEPS && current != SIZE_MAX) {
-              size_t next = flow_coarse[current];
-              if (next == SIZE_MAX) break;
-
-              if (coarse_set.find(next) != coarse_set.end() ||
-                  next == last_big_cell) {
-                is_correct = true;
+          while(true){
+            auto coarse_it = fromto_coarse.find(this_cell);
+            if (coarse_it != fromto_coarse.end()){
+              if (this_coarse_cells.find(coarse_it->second) != this_coarse_cells.end() ||
+                  coarse_it->second == last_big_cell){
+                found = true;
                 break;
+              } else {
+                count++;
+                this_cell = coarse_it->second;
+                if (count > 3000) {break;}
               }
-              current = next;
-              steps++;
+            } else {
+              break;
             }
+          }
 
-            if (is_correct) {
-              fi_nominator += count;
-            }
+          // МОДИФИЦИРОВАННАЯ ЛОГИКА: применение гармонического штрафа
+          if (found) {
+            // d - количество ячеек, пройденных перед возвращением на траекторию
+            int d = count;  // count содержит количество "лишних" шагов
+            correct = 1.0 / (1.0 + static_cast<double>(d));
+          } else {
+            correct = 0;
           }
         }
 
-        double fi = static_cast<double>(fi_nominator) / static_cast<double>(denom);
-        all_acc_nominator += fi * n_flow;
-        all_acc_denominator += n_flow;
+        is_correct.push_back(static_cast<int>(correct > 0 ? 1 : 0));  // Сохраняем бинарный флаг как в оригинале
+        fi_nominator += correct * elmt.second;
       }
+
+      int denom = n_flow - this_coarse_cells[last_big_cell];
+      double fi = fi_nominator / static_cast<double>(denom);
+
+      all_acc_nominator += (fi * n_flow);
+      all_acc_denominator += n_flow;
     }
 
-    // ============================================================
-    // ШАГ 9: Промежуточные результаты
-    // ============================================================
-    if (flow_id >= 100) {
-      if (flow_id % 100 == 0) {
+    if (i >= 100){
+      if (i % 100 == 0){
         intermed_result.push_back(all_acc_nominator / all_acc_denominator);
       }
     } else {
-      if (flow_id % 10 == 0) {
+      if (i % 10 == 0){
         intermed_result.push_back(all_acc_nominator / all_acc_denominator);
       }
     }
   }
 
+  std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
   double all_accuracy = all_acc_nominator / all_acc_denominator;
-  intermed_result.push_back(all_accuracy);
+  std::cout<<"number of flows: "<<max_num<<std::endl;
 
+  intermed_result.push_back(all_accuracy);
+  return intermed_result;
+}
+
+
+
+// 1. Введён штраф за отклонение от потока
+// 2. Не вычисляет внутри дренажное дерево, а берёт на входе
+//
+
+// [[Rcpp::export]]
+std::vector<double> generalisation_ver_penalty_dt(std::vector<std::string> & ifrom_fine,
+                                                std::vector<std::string> & ito_fine,
+                                                std::vector<std::string> & ifrom_coarse,
+                                                std::vector<std::string> & ito_coarse,
+                                                std::vector<std::string> & ind_dt_fine,
+                                                std::vector<int> & dt_fine,
+                                                const int flow_num){
+  try{
+    if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
+      throw 2;
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  const int n_fine = ifrom_fine.size();
+  const int n_coarse = ifrom_coarse.size();
+
+  const int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].c_str()));
+  const int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].c_str()));
+
+  std::unordered_map<std::string, std::string> fromto_coarse;
+  fromto_coarse.reserve(n_coarse);
+  for (int i = 0; i < n_coarse; i++){
+    if (ifrom_coarse[i] != ito_coarse[i]){
+      fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
+    }
+  }
+
+  std::unordered_map<std::string, std::string> fromto_fine;
+  fromto_fine.reserve(n_fine);
+  for (int i = 0; i < n_fine; i++){
+    if (ifrom_fine[i] != ito_fine[i]){
+      fromto_fine[ifrom_fine[i]] = ito_fine[i];
+    }
+  }
+
+  // Формируем drainage tree из входных векторов
+  std::unordered_map<std::string, int> dtree;
+
+  try{
+    if (ind_dt_fine.size() != dt_fine.size()){
+      throw 2;
+    }
+  } catch(int x){
+    std::cout<<"not equal vector lengths exception in drainage tree data - unpredictable result" << std::endl;
+  }
+
+  const int n_dt = ind_dt_fine.size();
+  dtree.reserve(n_dt + 1);
+
+  int max_num = 0;
+  for (int i = 0; i < n_dt; i++){
+    dtree[ind_dt_fine[i]] = dt_fine[i];
+    if (dt_fine[i] > max_num) {
+      max_num = dt_fine[i];
+    }
+  }
+  dtree["max_num"] = max_num;
+
+  // Инвертируем dtree для быстрого доступа
+  std::unordered_map<int, std::vector<std::string>> flow_to_cells;
+  flow_to_cells.reserve(max_num);
+
+  for (const auto& pair : dtree) {
+    if (pair.first != "max_num") {
+      flow_to_cells[pair.second].push_back(pair.first);
+    }
+  }
+
+  // Pre-allocate working containers
+  std::unordered_map<std::string, int> this_coarse_cells;
+  this_coarse_cells.reserve(50);
+
+  // Кэшируем H3_to_parent
+  std::unordered_map<std::string, std::string> parent_cache;
+
+  double all_acc_nominator = 0;
+  double all_acc_denominator = 1;
+  std::vector<double> intermed_result;
+
+  const int effective_flow_num = std::min(flow_num, max_num);
+
+  for (int i = 1; i < effective_flow_num; i++){
+    std::cout<<"process "<<i<<"th flow"<<std::endl;
+
+    auto it = flow_to_cells.find(i);
+    if (it == flow_to_cells.end()) continue;
+
+    const std::vector<std::string>& fine_flow = it->second;
+    const int n_flow = fine_flow.size();
+
+    this_coarse_cells.clear();
+
+    std::string last_big_cell;
+    bool first_cell = true;
+
+    for (const auto & elmt : fine_flow){
+      std::string parent;
+      auto parent_it = parent_cache.find(elmt);
+      if (parent_it != parent_cache.end()) {
+        parent = parent_it->second;
+      } else {
+        parent = H3_to_parent(elmt, h3_level_coarse);
+        parent_cache[elmt] = parent;
+      }
+
+      this_coarse_cells[parent]++;
+
+      if (first_cell) {
+        last_big_cell = parent;
+        first_cell = false;
+      }
+
+      auto fromto_it = fromto_fine.find(elmt);
+      if (fromto_it != fromto_fine.end()){
+        if (std::find(fine_flow.begin(), fine_flow.end(), fromto_it->second)
+              == fine_flow.end()){
+          last_big_cell = parent;
+        }
+      } else {
+        last_big_cell = parent;
+      }
+    }
+
+    // go through coarse cells:
+    if (this_coarse_cells.size() > 1){
+      std::vector<int> is_correct;
+      double fi_nominator = 0;
+
+      for (const auto & elmt : this_coarse_cells){
+        double correct = 0;
+        if (elmt.first != last_big_cell){
+          std::string this_cell = elmt.first;
+          int count = 0;
+          bool found = false;
+
+          while(true){
+            auto coarse_it = fromto_coarse.find(this_cell);
+            if (coarse_it != fromto_coarse.end()){
+              if (this_coarse_cells.find(coarse_it->second) != this_coarse_cells.end() ||
+                  coarse_it->second == last_big_cell){
+                found = true;
+                break;
+              } else {
+                count++;
+                this_cell = coarse_it->second;
+                if (count > 3000) {break;}
+              }
+            } else {
+              break;
+            }
+          }
+
+          if (found) {
+            int d = count;
+            correct = 1.0 / (1.0 + static_cast<double>(d));
+          } else {
+            correct = 0;
+          }
+        }
+
+        is_correct.push_back(static_cast<int>(correct > 0 ? 1 : 0));
+        fi_nominator += correct * elmt.second;
+      }
+
+      int denom = n_flow - this_coarse_cells[last_big_cell];
+      double fi = fi_nominator / static_cast<double>(denom);
+
+      all_acc_nominator += (fi * n_flow);
+      all_acc_denominator += n_flow;
+    }
+
+    if (i >= 100){
+      if (i % 100 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    } else {
+      if (i % 10 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    }
+  }
+
+  std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
+  double all_accuracy = all_acc_nominator / all_acc_denominator;
+  std::cout<<"number of flows: "<<max_num<<std::endl;
+
+  intermed_result.push_back(all_accuracy);
   return intermed_result;
 }
 
@@ -5215,338 +5273,499 @@ std::vector<double> generalisation_verification_fast(
 
 
 
-// Second step of verification
-// uses fine and coarse from-to tabs as in-data
-// Added penalty count (AI version)
+// 1. Введён штраф за отклонение от потока
+// 2. Не вычисляет внутри дренажное дерево, а берёт на входе
+// 3. Использует реальную площадь ячеек в обоих случаях
 
 // [[Rcpp::export]]
-std::vector<double> generalisation_verification_with_penalty(
-    const std::vector<std::string>& ifrom_fine,
-    const std::vector<std::string>& ito_fine,
-    const std::vector<std::string>& ifrom_coarse,
-    const std::vector<std::string>& ito_coarse,
-    const std::vector<std::string>& ind_fine,
-    const std::vector<int>& fa_fine,
-    const int flow_num) {
-
-  std::vector<double> intermed_result;
-  intermed_result.reserve(100);
-
-  if (ifrom_fine.size() != ito_fine.size() ||
-      ifrom_coarse.size() != ito_coarse.size() ||
-      ind_fine.size() != fa_fine.size()) {
-    return intermed_result;
+std::vector<double> generalisation_ver_pen_area(std::vector<std::string> & ifrom_fine,
+                                                  std::vector<std::string> & ito_fine,
+                                                  std::vector<std::string> & ifrom_coarse,
+                                                  std::vector<std::string> & ito_coarse,
+                                                  std::vector<std::string> & ind_dt_fine,
+                                                  std::vector<int> & dt_fine,
+                                                  const int flow_num){
+  try{
+    if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
+      throw 2;
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
   }
 
-  const size_t n_fine = ifrom_fine.size();
-  const size_t n_coarse = ifrom_coarse.size();
+  const int n_fine = ifrom_fine.size();
+  const int n_coarse = ifrom_coarse.size();
 
-  // ============================================================
-  // ШАГ 1: Создание единого маппинга строк → индексы
-  // ============================================================
-  std::unordered_map<std::string, size_t> str_to_idx;
-  std::unordered_map<size_t, std::string> idx_to_str;
-  std::vector<H3Index> idx_to_h3;
+  const int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].c_str()));
+  const int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].c_str()));
 
-  str_to_idx.reserve((n_fine + n_coarse) * 2);
-  idx_to_str.reserve((n_fine + n_coarse) * 2);
-  idx_to_h3.reserve((n_fine + n_coarse) * 2);
+  std::unordered_map<std::string, std::string> fromto_coarse;
+  fromto_coarse.reserve(n_coarse);
+  for (int i = 0; i < n_coarse; i++){
+    if (ifrom_coarse[i] != ito_coarse[i]){
+      fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
+    }
+  }
 
-  // Функция получения индекса (C++11 совместимая)
-  std::function<size_t(const std::string&)> get_index =
-    [&](const std::string& s) -> size_t {
-      std::unordered_map<std::string, size_t>::const_iterator it = str_to_idx.find(s);
-      if (it != str_to_idx.end()) {
-        return it->second;
+  std::unordered_map<std::string, std::string> fromto_fine;
+  fromto_fine.reserve(n_fine);
+  for (int i = 0; i < n_fine; i++){
+    if (ifrom_fine[i] != ito_fine[i]){
+      fromto_fine[ifrom_fine[i]] = ito_fine[i];
+    }
+  }
+
+  // Кэш для площадей ячеек
+  std::unordered_map<std::string, double> area_cache;
+
+  // Функция для получения площади ячейки в км² с кэшированием
+  auto get_area_km2 = [&](const std::string& h3_str) -> double {
+    auto it = area_cache.find(h3_str);
+    if (it != area_cache.end()) {
+      return it->second;
+    }
+    H3Index h3 = stringToH3(h3_str.c_str());
+    double area_km2 = cellAreaM2(h3) / 1000000.0;
+    area_cache[h3_str] = area_km2;
+    return area_km2;
+  };
+
+  // Формируем drainage tree из входных векторов
+  std::unordered_map<std::string, int> dtree;
+
+  try{
+    if (ind_dt_fine.size() != dt_fine.size()){
+      throw 2;
+    }
+  } catch(int x){
+    std::cout<<"not equal vector lengths exception in drainage tree data - unpredictable result" << std::endl;
+  }
+
+  const int n_dt = ind_dt_fine.size();
+  dtree.reserve(n_dt + 1);
+
+  int max_num = 0;
+  for (int i = 0; i < n_dt; i++){
+    dtree[ind_dt_fine[i]] = dt_fine[i];
+    if (dt_fine[i] > max_num) {
+      max_num = dt_fine[i];
+    }
+  }
+  dtree["max_num"] = max_num;
+
+  // Инвертируем dtree для быстрого доступа
+  std::unordered_map<int, std::vector<std::string>> flow_to_cells;
+  flow_to_cells.reserve(max_num);
+
+  for (const auto& pair : dtree) {
+    if (pair.first != "max_num") {
+      flow_to_cells[pair.second].push_back(pair.first);
+    }
+  }
+
+  // Pre-allocate working containers
+  // Храним суммарную площадь вместо количества ячеек
+  std::unordered_map<std::string, double> this_coarse_cells_area;
+  this_coarse_cells_area.reserve(50);
+
+  // Кэшируем H3_to_parent
+  std::unordered_map<std::string, std::string> parent_cache;
+
+  double all_acc_nominator = 0;
+  double all_acc_denominator = 1;
+  std::vector<double> intermed_result;
+
+  const int effective_flow_num = std::min(flow_num, max_num);
+
+  for (int i = 1; i < effective_flow_num; i++){
+    std::cout<<"process "<<i<<"th flow"<<std::endl;
+
+    auto it = flow_to_cells.find(i);
+    if (it == flow_to_cells.end()) continue;
+
+    const std::vector<std::string>& fine_flow = it->second;
+
+    // Вычисляем суммарную площадь всего водотока
+    double total_flow_area = 0.0;
+    for (const auto& cell : fine_flow) {
+      total_flow_area += get_area_km2(cell);
+    }
+
+    this_coarse_cells_area.clear();
+
+    std::string last_big_cell;
+    bool first_cell = true;
+
+    for (const auto & elmt : fine_flow){
+      std::string parent;
+      auto parent_it = parent_cache.find(elmt);
+      if (parent_it != parent_cache.end()) {
+        parent = parent_it->second;
+      } else {
+        parent = H3_to_parent(elmt, h3_level_coarse);
+        parent_cache[elmt] = parent;
       }
-      size_t idx = idx_to_str.size();
-      str_to_idx[s] = idx;
-      idx_to_str[idx] = s;
-      idx_to_h3.push_back(stringToH3(s.c_str()));
-      return idx;
-    };
 
-    // Получаем индексы для всех строк
-    std::vector<size_t> from_fine_idx(n_fine);
-    std::vector<size_t> to_fine_idx(n_fine);
-    for (size_t i = 0; i < n_fine; ++i) {
-      from_fine_idx[i] = get_index(ifrom_fine[i]);
-      to_fine_idx[i] = get_index(ito_fine[i]);
-    }
+      // Накапливаем площадь вместо количества
+      this_coarse_cells_area[parent] += get_area_km2(elmt);
 
-    std::vector<size_t> from_coarse_idx(n_coarse);
-    std::vector<size_t> to_coarse_idx(n_coarse);
-    for (size_t i = 0; i < n_coarse; ++i) {
-      from_coarse_idx[i] = get_index(ifrom_coarse[i]);
-      to_coarse_idx[i] = get_index(ito_coarse[i]);
-    }
-
-    std::vector<size_t> ind_fine_idx(ind_fine.size());
-    for (size_t i = 0; i < ind_fine.size(); ++i) {
-      ind_fine_idx[i] = get_index(ind_fine[i]);
-    }
-
-    const size_t total_cells = idx_to_str.size();
-
-    // ============================================================
-    // ШАГ 2: Карты потоков (векторы)
-    // ============================================================
-    std::vector<size_t> flow_fine(total_cells, SIZE_MAX);
-    for (size_t i = 0; i < n_fine; ++i) {
-      if (from_fine_idx[i] != to_fine_idx[i]) {
-        flow_fine[from_fine_idx[i]] = to_fine_idx[i];
+      if (first_cell) {
+        last_big_cell = parent;
+        first_cell = false;
       }
-    }
 
-    std::vector<size_t> flow_coarse(total_cells, SIZE_MAX);
-    for (size_t i = 0; i < n_coarse; ++i) {
-      if (from_coarse_idx[i] != to_coarse_idx[i]) {
-        flow_coarse[from_coarse_idx[i]] = to_coarse_idx[i];
-      }
-    }
-
-    // ============================================================
-    // ШАГ 3: Получение дерева дренажа (C++11 версия)
-    // ============================================================
-    std::unordered_map<std::string, int> dtree = dren_tree_fa_fast(
-      ind_fine, fa_fine, ifrom_fine, ito_fine);
-
-    // ============================================================
-    // ШАГ 4: Группировка по потокам (используем индексы)
-    // ============================================================
-    std::unordered_map<int, std::vector<size_t> > flow_to_indices;
-    flow_to_indices.reserve(dtree.size());
-
-    for (std::unordered_map<std::string, int>::const_iterator it = dtree.begin();
-         it != dtree.end(); ++it) {
-      if (it->first == "max_num") continue;
-      int flow_id = it->second;
-      std::unordered_map<std::string, size_t>::const_iterator str_it =
-        str_to_idx.find(it->first);
-      if (str_it != str_to_idx.end()) {
-        flow_to_indices[flow_id].push_back(str_it->second);
-      }
-    }
-
-    // ============================================================
-    // ШАГ 5: Кэш для родителей
-    // ============================================================
-    std::vector<size_t> parent_cache(total_cells, SIZE_MAX);
-    int coarse_level = h3GetResolution(idx_to_h3[0]);
-
-    std::function<size_t(size_t)> get_parent_idx =
-      [&](size_t idx) -> size_t {
-        if (parent_cache[idx] != SIZE_MAX) {
-          return parent_cache[idx];
+      auto fromto_it = fromto_fine.find(elmt);
+      if (fromto_it != fromto_fine.end()){
+        if (std::find(fine_flow.begin(), fine_flow.end(), fromto_it->second)
+              == fine_flow.end()){
+          last_big_cell = parent;
         }
-        H3Index parent = h3ToParent(idx_to_h3[idx], coarse_level);
-        char buffer[17];
-        h3ToString(parent, buffer, sizeof(buffer));
-        std::string parent_str(buffer);
-        std::unordered_map<std::string, size_t>::const_iterator it =
-          str_to_idx.find(parent_str);
-        size_t parent_idx = (it != str_to_idx.end()) ? it->second : SIZE_MAX;
-        parent_cache[idx] = parent_idx;
-        return parent_idx;
-      };
+      } else {
+        last_big_cell = parent;
+      }
+    }
 
-      // ============================================================
-      // ШАГ 6: Кэш для соседей (используем vector вместо array)
-      // ============================================================
-      std::unordered_map<size_t, std::vector<size_t> > neighbor_cache;
-      neighbor_cache.reserve(total_cells / 2);
-      const int RING_SIZE = 6;
+    // go through coarse cells:
+    if (this_coarse_cells_area.size() > 1){
+      std::vector<int> is_correct;
+      double fi_nominator = 0;
 
-      std::function<const std::vector<size_t>&(size_t)> get_neighbors =
-        [&](size_t idx) -> const std::vector<size_t>& {
-          std::unordered_map<size_t, std::vector<size_t> >::iterator it =
-            neighbor_cache.find(idx);
-          if (it != neighbor_cache.end()) {
-            return it->second;
-          }
+      for (const auto & elmt : this_coarse_cells_area){
+        double correct = 0;
+        if (elmt.first != last_big_cell){
+          std::string this_cell = elmt.first;
+          int count = 0;
+          bool found = false;
 
-          H3Index h3_neighbors[RING_SIZE];
-          hexRing(idx_to_h3[idx], 1, h3_neighbors);
-
-          std::vector<size_t> idx_neighbors;
-          idx_neighbors.reserve(RING_SIZE);
-          for (int i = 0; i < RING_SIZE; ++i) {
-            if (h3_neighbors[i] != 0) {
-              char buffer[17];
-              h3ToString(h3_neighbors[i], buffer, sizeof(buffer));
-              std::string neighbor_str(buffer);
-              std::unordered_map<std::string, size_t>::const_iterator str_it =
-                str_to_idx.find(neighbor_str);
-              if (str_it != str_to_idx.end()) {
-                idx_neighbors.push_back(str_it->second);
-              }
-            }
-          }
-
-          std::pair<std::unordered_map<size_t, std::vector<size_t> >::iterator, bool> result =
-            neighbor_cache.insert(std::make_pair(idx, idx_neighbors));
-          return result.first->second;
-        };
-
-        // ============================================================
-        // ШАГ 7: Основной цикл
-        // ============================================================
-        double all_acc_nominator = 0.0;
-        double all_acc_denominator = 1.0;
-
-        int max_flow_num = dtree["max_num"];
-        int actual_flow_num = (flow_num < max_flow_num) ? flow_num : max_flow_num;
-
-        for (int flow_id = 1; flow_id < actual_flow_num; ++flow_id) {
-          std::unordered_map<int, std::vector<size_t> >::const_iterator cells_it =
-            flow_to_indices.find(flow_id);
-          if (cells_it == flow_to_indices.end()) continue;
-
-          const std::vector<size_t>& flow_indices = cells_it->second;
-          size_t n_flow = flow_indices.size();
-
-          if (n_flow == 0) continue;
-
-          // ============================================================
-          // ШАГ 8: Анализ потока
-          // ============================================================
-          std::unordered_map<size_t, int> coarse_counts;
-          coarse_counts.reserve(n_flow);
-
-          std::unordered_set<size_t> flow_set;
-          flow_set.reserve(n_flow);
-          for (std::vector<size_t>::const_iterator idx_it = flow_indices.begin();
-               idx_it != flow_indices.end(); ++idx_it) {
-            flow_set.insert(*idx_it);
-          }
-
-          size_t last_big_cell = get_parent_idx(flow_indices[0]);
-
-          for (std::vector<size_t>::const_iterator idx_it = flow_indices.begin();
-               idx_it != flow_indices.end(); ++idx_it) {
-            size_t idx = *idx_it;
-            size_t parent = get_parent_idx(idx);
-
-            std::unordered_map<size_t, int>::iterator count_it = coarse_counts.find(parent);
-            if (count_it != coarse_counts.end()) {
-              count_it->second++;
-            } else {
-              coarse_counts[parent] = 1;
-            }
-
-            if (flow_fine[idx] != SIZE_MAX) {
-              if (flow_set.find(flow_fine[idx]) == flow_set.end()) {
-                last_big_cell = parent;
+          while(true){
+            auto coarse_it = fromto_coarse.find(this_cell);
+            if (coarse_it != fromto_coarse.end()){
+              if (this_coarse_cells_area.find(coarse_it->second) != this_coarse_cells_area.end() ||
+                  coarse_it->second == last_big_cell){
+                found = true;
+                break;
+              } else {
+                count++;
+                this_cell = coarse_it->second;
+                if (count > 3000) {break;}
               }
             } else {
-              last_big_cell = parent;
+              break;
             }
           }
 
-          // ============================================================
-          // ШАГ 9: Проверка корректности с гармоническим штрафом
-          // ============================================================
-          if (coarse_counts.size() > 1) {
-            double total_score = 0.0;
-            int total_weight = 0;
-
-            // Создаем set для быстрой проверки
-            std::unordered_set<size_t> coarse_set;
-            coarse_set.reserve(coarse_counts.size());
-            for (std::unordered_map<size_t, int>::const_iterator it = coarse_counts.begin();
-                 it != coarse_counts.end(); ++it) {
-              coarse_set.insert(it->first);
-            }
-
-            // Кэш для запомненных расстояний отклонения
-            std::unordered_map<size_t, int> deviation_cache;
-            deviation_cache.reserve(coarse_counts.size());
-
-            for (std::unordered_map<size_t, int>::const_iterator it = coarse_counts.begin();
-                 it != coarse_counts.end(); ++it) {
-              size_t coarse_cell = it->first;
-              int count = it->second;
-
-              if (coarse_cell == last_big_cell) {
-                continue;
-              }
-
-              // Проверяем, есть ли уже вычисленное отклонение
-              std::unordered_map<size_t, int>::const_iterator cache_it =
-                deviation_cache.find(coarse_cell);
-              int deviation_steps;
-
-              if (cache_it != deviation_cache.end()) {
-                deviation_steps = cache_it->second;
-              } else {
-                // Трассируем путь по coarse до возвращения на траекторию
-                deviation_steps = 0;
-                size_t current = coarse_cell;
-                bool found_path = false;
-                const int MAX_STEPS = 3000;
-
-                while (deviation_steps < MAX_STEPS) {
-                  size_t next = flow_coarse[current];
-                  if (next == SIZE_MAX) {
-                    break;
-                  }
-                  deviation_steps++;
-
-                  // Проверяем, вернулись ли на траекторию
-                  if (coarse_set.find(next) != coarse_set.end() ||
-                      next == last_big_cell) {
-                    found_path = true;
-                    break;
-                  }
-                  current = next;
-                }
-
-                // Если не нашли путь, считаем, что отклонение максимальное
-                if (!found_path) {
-                  deviation_steps = MAX_STEPS;
-                }
-
-                deviation_cache[coarse_cell] = deviation_steps;
-              }
-
-              // Расчет оценки по гармоническому правилу: c = 1 / (1 + d)
-              double score;
-              if (deviation_steps == 0) {
-                score = 1.0;
-              } else {
-                score = 1.0 / (1.0 + static_cast<double>(deviation_steps));
-              }
-
-              total_score += score * count;
-              total_weight += count;
-            }
-
-            // Вычисляем среднюю оценку для потока
-            double fi = (total_weight > 0) ? total_score / total_weight : 0.0;
-
-            all_acc_nominator += fi * static_cast<double>(n_flow);
-            all_acc_denominator += static_cast<double>(n_flow);
-          }
-
-          // ============================================================
-          // ШАГ 10: Промежуточные результаты
-          // ============================================================
-          if (flow_id >= 100) {
-            if (flow_id % 100 == 0) {
-              intermed_result.push_back(all_acc_nominator / all_acc_denominator);
-            }
+          if (found) {
+            int d = count;
+            correct = 1.0 / (1.0 + static_cast<double>(d));
           } else {
-            if (flow_id % 10 == 0) {
-              intermed_result.push_back(all_acc_nominator / all_acc_denominator);
-            }
+            correct = 0;
           }
         }
 
-        double all_accuracy = all_acc_nominator / all_acc_denominator;
-        intermed_result.push_back(all_accuracy);
+        is_correct.push_back(static_cast<int>(correct > 0 ? 1 : 0));
+        // elmt.second уже содержит суммарную площадь fine ячеек в coarse ячейке
+        fi_nominator += correct * elmt.second;
+      }
 
-        return intermed_result;
+      // Знаменатель: общая площадь водотока минус площадь last_big_cell
+      double denom = total_flow_area - this_coarse_cells_area[last_big_cell];
+      double fi = 0;
+      if (denom > 0) {
+        fi = fi_nominator / denom;
+      }
+
+      // Используем площадь водотока как вес
+      all_acc_nominator += (fi * total_flow_area);
+      all_acc_denominator += total_flow_area;
+    }
+
+    if (i >= 100){
+      if (i % 100 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    } else {
+      if (i % 10 == 0){
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    }
+  }
+
+  std::cout<<all_acc_nominator<<"--"<<all_acc_denominator<<std::endl;
+  double all_accuracy = all_acc_nominator / all_acc_denominator;
+  std::cout<<"number of flows: "<<max_num<<std::endl;
+
+  intermed_result.push_back(all_accuracy);
+  return intermed_result;
 }
+
+
+
+// 1. Введён штраф за отклонение от потока
+// 2. Не вычисляет внутри дренажное дерево, а берёт на входе
+// 3. Использует реальную площадь водосбора в обоих случаях
+
+// [[Rcpp::export]]
+std::vector<double> gener_ver_pen_ca(std::vector<std::string> & ifrom_fine,
+                                                std::vector<std::string> & ito_fine,
+                                                std::vector<std::string> & ifrom_coarse,
+                                                std::vector<std::string> & ito_coarse,
+                                                std::vector<std::string> & ind_dt_fine,
+                                                std::vector<int> & dt_fine,
+                                                std::vector<std::string> & ind_ca_fine,
+                                                std::vector<double> & ca_fine,
+                                                const int flow_num){
+  try{
+    if (ifrom_fine.size() != ito_fine.size() || ifrom_coarse.size() != ito_coarse.size()){
+      throw 2;
+    }}
+  catch(int x){
+    std::cout<<"not equal vector lengths exception - unpredictable result" << std::endl;
+  }
+
+  const int n_fine = ifrom_fine.size();
+  const int n_coarse = ifrom_coarse.size();
+
+  const int h3_level_fine = h3GetResolution(stringToH3(ifrom_fine[0].c_str()));
+  const int h3_level_coarse = h3GetResolution(stringToH3(ifrom_coarse[0].c_str()));
+
+  std::unordered_map<std::string, std::string> fromto_coarse;
+  fromto_coarse.reserve(n_coarse);
+  for (int i = 0; i < n_coarse; i++){
+    if (ifrom_coarse[i] != ito_coarse[i]){
+      fromto_coarse[ifrom_coarse[i]] = ito_coarse[i];
+    }
+  }
+
+  std::unordered_map<std::string, std::string> fromto_fine;
+  fromto_fine.reserve(n_fine);
+  for (int i = 0; i < n_fine; i++){
+    if (ifrom_fine[i] != ito_fine[i]){
+      fromto_fine[ifrom_fine[i]] = ito_fine[i];
+    }
+  }
+
+  // Формируем drainage tree из входных векторов
+  std::unordered_map<std::string, int> dtree;
+
+  try{
+    if (ind_dt_fine.size() != dt_fine.size()){
+      throw 2;
+    }
+  } catch(int x){
+    std::cout<<"not equal vector lengths exception in drainage tree data - unpredictable result" << std::endl;
+  }
+
+  const int n_dt = ind_dt_fine.size();
+  dtree.reserve(n_dt + 1);
+
+  int max_num = 0;
+  for (int i = 0; i < n_dt; i++){
+    dtree[ind_dt_fine[i]] = dt_fine[i];
+    if (dt_fine[i] > max_num) {
+      max_num = dt_fine[i];
+    }
+  }
+  dtree["max_num"] = max_num;
+
+  // Формируем словарь водосборных площадей
+  std::unordered_map<std::string, double> ca_map;
+
+  try{
+    if (ind_ca_fine.size() != ca_fine.size()){
+      throw 2;
+    }
+  } catch(int x){
+    std::cout<<"not equal vector lengths exception in catchment area data - unpredictable result" << std::endl;
+  }
+
+  const int n_ca = ind_ca_fine.size();
+  ca_map.reserve(n_ca);
+
+  for (int i = 0; i < n_ca; i++){
+    ca_map[ind_ca_fine[i]] = ca_fine[i];
+  }
+
+  // Инвертируем dtree для быстрого доступа
+  std::unordered_map<int, std::vector<std::string>> flow_to_cells;
+  flow_to_cells.reserve(max_num);
+
+  for (const auto& pair : dtree) {
+    if (pair.first != "max_num") {
+      flow_to_cells[pair.second].push_back(pair.first);
+    }
+  }
+
+  // Вычисляем максимальную CA для каждого потока и сортируем потоки
+  std::vector<std::pair<int, double>> flow_max_ca;
+  flow_max_ca.reserve(flow_to_cells.size());
+
+  for (const auto& flow_pair : flow_to_cells) {
+    int flow_num_key = flow_pair.first;
+    const auto& cells = flow_pair.second;
+    double max_ca = 0.0;
+    for (const auto& cell : cells) {
+      auto ca_it = ca_map.find(cell);
+      if (ca_it != ca_map.end() && ca_it->second > max_ca) {
+        max_ca = ca_it->second;
+      }
+    }
+    if (max_ca > 0) {
+      flow_max_ca.emplace_back(flow_num_key, max_ca);
+    }
+  }
+
+  // Сортируем по убыванию максимальной водосборной площади
+  std::sort(flow_max_ca.begin(), flow_max_ca.end(),
+            [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
+              return a.second > b.second;
+            });
+
+  // Pre-allocate working containers
+  std::unordered_map<std::string, std::vector<double>> this_coarse_cells_ca;
+  this_coarse_cells_ca.reserve(50);
+
+  // Кэшируем H3_to_parent
+  std::unordered_map<std::string, std::string> parent_cache;
+
+  double all_acc_nominator = 0;
+  double all_acc_denominator = 0;
+  std::vector<double> intermed_result;
+
+  const int flows_to_process = std::min(flow_num, (int)flow_max_ca.size());
+
+  for (int idx = 0; idx < flows_to_process; idx++){
+    int flow_num_key = flow_max_ca[idx].first;
+    double max_ca_flow = flow_max_ca[idx].second;
+
+    if (idx % 100 == 0 || idx < 5) {
+      std::cout << "process flow " << flow_num_key << " (rank " << idx + 1
+                << ", max CA: " << max_ca_flow << ")" << std::endl;
+    }
+
+    const auto& fine_flow = flow_to_cells[flow_num_key];
+
+    this_coarse_cells_ca.clear();
+
+    std::string last_big_cell;
+    std::string prev_before_last_cell;
+    bool first_cell = true;
+
+    for (const auto & elmt : fine_flow){
+      std::string parent;
+      auto parent_it = parent_cache.find(elmt);
+      if (parent_it != parent_cache.end()) {
+        parent = parent_it->second;
+      } else {
+        parent = H3_to_parent(elmt, h3_level_coarse);
+        parent_cache[elmt] = parent;
+      }
+
+      // Сохраняем CA значение для этой coarse ячейки
+      auto ca_it = ca_map.find(elmt);
+      if (ca_it != ca_map.end()) {
+        this_coarse_cells_ca[parent].push_back(ca_it->second);
+      }
+
+      if (first_cell) {
+        last_big_cell = parent;
+        prev_before_last_cell = parent;
+        first_cell = false;
+      }
+
+      std::string old_last_big_cell = last_big_cell;
+
+      auto fromto_it = fromto_fine.find(elmt);
+      if (fromto_it != fromto_fine.end()){
+        if (std::find(fine_flow.begin(), fine_flow.end(), fromto_it->second)
+              == fine_flow.end()){
+          last_big_cell = parent;
+        }
+      } else {
+        last_big_cell = parent;
+      }
+
+      if (old_last_big_cell != last_big_cell) {
+        prev_before_last_cell = old_last_big_cell;
+      }
+    }
+
+    // go through coarse cells:
+    if (this_coarse_cells_ca.size() > 1){
+      std::vector<int> is_correct;
+      double fi_nominator = 0;
+      double total_ca_diff = 0;  // Сумма всех ca_diff для нормализации
+
+      for (const auto & elmt : this_coarse_cells_ca){
+        double correct = 0;
+        if (elmt.first != last_big_cell){
+          std::string this_cell = elmt.first;
+          int count = 0;
+          bool found = false;
+
+          while(true){
+            auto coarse_it = fromto_coarse.find(this_cell);
+            if (coarse_it != fromto_coarse.end()){
+              if (this_coarse_cells_ca.find(coarse_it->second) != this_coarse_cells_ca.end() ||
+                  coarse_it->second == last_big_cell){
+                found = true;
+                break;
+              } else {
+                count++;
+                this_cell = coarse_it->second;
+                if (count > 3000) {break;}
+              }
+            } else {
+              break;
+            }
+          }
+
+          if (found) {
+            int d = count;
+            correct = 1.0 / (1.0 + static_cast<double>(d));
+          } else {
+            correct = 0;
+          }
+        }
+
+        is_correct.push_back(static_cast<int>(correct > 0 ? 1 : 0));
+
+        // Вычисляем разницу между max и min CA для этой coarse ячейки
+        const auto& ca_values = elmt.second;
+        if (!ca_values.empty()) {
+          auto minmax = std::minmax_element(ca_values.begin(), ca_values.end());
+          double ca_diff = *minmax.second - *minmax.first;
+          fi_nominator += correct * ca_diff;
+          total_ca_diff += ca_diff;  // Накапливаем для нормализации
+        }
+      }
+
+      // НОРМАЛИЗАЦИЯ: делим на сумму всех ca_diff, чтобы fi был в [0, 1]
+      double fi = 0;
+      if (total_ca_diff > 0) {
+        fi = fi_nominator / total_ca_diff;
+      }
+
+      // Используем водосборную площадь как вес
+      all_acc_nominator += (fi * max_ca_flow);
+      all_acc_denominator += max_ca_flow;
+    }
+
+    // Сохраняем промежуточные результаты
+    if (idx < 10 || (idx < 100 && idx % 10 == 0) || idx % 100 == 0) {
+      if (all_acc_denominator > 0) {
+        intermed_result.push_back(all_acc_nominator / all_acc_denominator);
+      }
+    }
+  }
+
+  std::cout << all_acc_nominator << "--" << all_acc_denominator << std::endl;
+  double all_accuracy = (all_acc_denominator > 0) ? all_acc_nominator / all_acc_denominator : 0;
+  std::cout << "number of flows: " << max_num << std::endl;
+
+  intermed_result.push_back(all_accuracy);
+  return intermed_result;
+}
+
 
 
 
